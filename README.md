@@ -7,3 +7,14 @@ Welcome to the the algorithms section of the learning  algorithms for learning r
 
 [TODO]
 
+# Contributors
+
+- Saoirse Amarteifio
+- Roozbeh H. Pazuki <rpazuki@gmail.com>
+
+# Licence & copyright
+
+Copyright (c) 2020 Saoirse Amarteifio/Roozbeh H. Pazuki
+
+Licensed under [MIT license](LICENCE)
+

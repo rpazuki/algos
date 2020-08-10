@@ -10,11 +10,11 @@ Welcome to the the algorithms section of the learning  algorithms for learning r
 # Contributors
 
 - Saoirse Amarteifio
-- Roozbeh H. Pazuki <rpazuki@gmail.com>
+- Roozbeh H. Pazuki (<rpazuki@gmail.com>)
 
 # Licence & copyright
 
 Copyright (c) 2020 Saoirse Amarteifio/Roozbeh H. Pazuki
 
-Licensed under [MIT license](LICENCE)
+Licensed under [MIT license](LICENSE).
 

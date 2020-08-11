@@ -16,5 +16,5 @@ Welcome to the the algorithms section of the learning  algorithms for learning r
 
 Copyright (c) 2020 Saoirse Amarteifio/Roozbeh H. Pazuki
 
-Licensed under [MIT license](LICENSE).
+Licensed under [MIT License](LICENSE).
 

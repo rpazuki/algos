@@ -2,7 +2,7 @@ import numpy as np
 
 
 class ClassificationMatrix:
-    """ Provides measures of performance for prediction against targets.
+    """Provides measures of performance for prediction against targets.
 
         Members:
         self.classSymbol:
@@ -17,7 +17,8 @@ class ClassificationMatrix:
     Rows are for targets (Observations) and
     columns are for prediction (Predictions).
     """
-    def __init__(self, predictions, targets, classSymbol=None):
+
+    def __init__(self, predictions, targets, class_symbol=None):
         """Construct a classification matrix for prediction against targets.
 
         Args:
@@ -40,16 +41,15 @@ class ClassificationMatrix:
         # In case, store the first element of the targets
         # to use as the symbol for the true cases, anytime
         # that the caller does not provide it
-        self.classSymbol = classSymbol
-        if self.classSymbol is None:
-            self.classSymbol = targets[0]
+        self.class_symbol = class_symbol
+        if self.class_symbol is None:
+            self.class_symbol = targets[0]
         # Classes symbols
         self.classes = set(targets).union(set(predictions))
         # The confusion matrix for calculations
         self.conf_matrix = np.zeros((len(self.classes), len(self.classes)))
         # create a lookup for the position of symbols in 'conf_matrix'
-        self.classes_lookup = dict([
-            (c, i) for i, c in enumerate(self.classes)])
+        self.classes_lookup = dict([(c, i) for i, c in enumerate(self.classes)])
 
         for (output, target) in zip(predictions, targets):
             # Find the indices for classes from the lookup
@@ -59,18 +59,20 @@ class ClassificationMatrix:
             # the comparision of target against output
             self.conf_matrix[i, j] += 1
 
-    def _get_class_symbole_index(self, classSymbol):
-        if classSymbol is None:
-            return self.classes_lookup[self.classSymbol]
+    def _get_class_symbole_index(self, class_symbol):
+        if class_symbol is None:
+            return self.classes_lookup[self.class_symbol]
         else:
             try:
-                return self.classes_lookup[classSymbol]
+                return self.classes_lookup[class_symbol]
             except KeyError:
-                raise KeyError(f"The class '{classSymbol}' is not defined " +
-                               "in predictions or targets.")
+                raise KeyError(
+                    f"The class '{class_symbol}' is not defined "
+                    + "in predictions or targets."
+                )
 
-    def TP(self, classSymbol=None):
-        """ True Positives
+    def tp(self, class_symbol=None):
+        """True Positives
 
             For Binary classification
                |     Prediction
@@ -84,7 +86,7 @@ class ClassificationMatrix:
             t  |        |
 
         Args:
-            classSymbol (object, optional): the object that is taken as
+            class_symbol (object, optional): the object that is taken as
                        true positive.
                        Defaults to None and take the first element of the
                        'targets' as true or the one that is specified in
@@ -93,11 +95,11 @@ class ClassificationMatrix:
         Returns:
             Int: True Positives
         """
-        i = self._get_class_symbole_index(classSymbol)
+        i = self._get_class_symbole_index(class_symbol)
         return self.conf_matrix[i, i]
 
-    def FP(self, classSymbol=None):
-        """ False Positives
+    def fp(self, class_symbol=None):
+        """False Positives
 
             For Binary classification
                |     Prediction
@@ -111,7 +113,7 @@ class ClassificationMatrix:
             t  |        |
 
         Args:
-            classSymbol (object, optional): the object that is taken as
+            class_symbol (object, optional): the object that is taken as
                        true positive.
                        Defaults to None and take the first element of the
                        'targets' as true or the one that is specified in
@@ -120,13 +122,13 @@ class ClassificationMatrix:
         Returns:
             Int: False Positives
         """
-        j = self._get_class_symbole_index(classSymbol)
+        j = self._get_class_symbole_index(class_symbol)
         # Select the column of the class
         column = self.conf_matrix[:, j]
         return np.sum([v for k, v in enumerate(column) if k != j])
 
-    def FN(self, classSymbol=None):
-        """ False Negative
+    def fn(self, class_symbol=None):
+        """False Negative
 
             For Binary classification
                |     Prediction
@@ -140,7 +142,7 @@ class ClassificationMatrix:
             t  |        |
 
         Args:
-            classSymbol (object, optional): the object that is taken as
+            class_symbol (object, optional): the object that is taken as
                        true positive.
                        Defaults to None and take the first element of the
                        'targets' as true or the one that is specified in
@@ -149,13 +151,13 @@ class ClassificationMatrix:
         Returns:
             Int: False Negative
         """
-        i = self._get_class_symbole_index(classSymbol)
+        i = self._get_class_symbole_index(class_symbol)
         # Select the row of the class
         row = self.conf_matrix[i, :]
         return np.sum([v for k, v in enumerate(row) if k != i])
 
-    def TN(self, classSymbol=None):
-        """ True Negative
+    def tn(self, class_symbol=None):
+        """True Negative
 
             For Binary classification
                |     Prediction
@@ -169,7 +171,7 @@ class ClassificationMatrix:
             t  |        |
 
         Args:
-            classSymbol (object, optional): the object that is taken as
+            class_symbol (object, optional): the object that is taken as
                        true positive.
                        Defaults to None and take the first element of the
                        'targets' as true or the one that is specified in
@@ -178,14 +180,14 @@ class ClassificationMatrix:
         Returns:
             Int: True Negative
         """
-        i = self._get_class_symbole_index(classSymbol)
+        i = self._get_class_symbole_index(class_symbol)
         # The diagonal of the 'conf_matrix', except the Tap
         # is TN
-        D = np.diag(self.conf_matrix)
-        return sum([v for k, v in enumerate(D) if k != i])
+        diagonals = np.diag(self.conf_matrix)
+        return sum([v for k, v in enumerate(diagonals) if k != i])
 
     def accuracy(self):
-        """ Finds the accuracy of the correctly classified cases.
+        """Finds the accuracy of the correctly classified cases.
 
             It is equal to the ratio of the trace divided by total sum.
             For 'Binray Classification', it is
@@ -206,16 +208,16 @@ class ClassificationMatrix:
             t  |        |
 
         """
-        return np.trace(self.conf_matrix)/np.sum(self.conf_matrix)
+        return np.trace(self.conf_matrix) / np.sum(self.conf_matrix)
 
-    def precision(self, classSymbol=None):
-        """ Finds the precision of the correctly classified cases.
+    def precision(self, class_symbol=None):
+        """Finds the precision of the correctly classified cases.
 
             For 'Binray Classification', it is
             #TP /(#TP + #FP)
 
         Args:
-            classSymbol (object, optional): the object that is taken as
+            class_symbol (object, optional): the object that is taken as
                        true positive.
                        Defaults to None and take the first element of the
                        'targets' as true or the one that is specified in
@@ -235,21 +237,21 @@ class ClassificationMatrix:
             t  |        |
 
         """
-        tp = self.TP(classSymbol)
-        fp = self.FP(classSymbol)
-        if tp+fp == 0:
+        true_positives = self.tp(class_symbol)
+        false_positives = self.fp(class_symbol)
+        if true_positives + false_positives == 0:
             return 0
         else:
-            return tp/(tp + fp)
+            return true_positives / (true_positives + false_positives)
 
-    def recall(self, classSymbol=None):
-        """ Finds the recall of the correctly classified cases.
+    def recall(self, class_symbol=None):
+        """Finds the recall of the correctly classified cases.
 
             For 'Binray Classification', it is
             #TP /(#TP + #FN)
 
         Args:
-            classSymbol (object, optional): the object that is taken as
+            class_symbol (object, optional): the object that is taken as
                        true positive.
                        Defaults to None and take the first element of the
                        'targets' as true or the one that is specified in
@@ -269,21 +271,21 @@ class ClassificationMatrix:
             e 1|  FP    |   TN
             t  |        |
         """
-        tp = self.TP(classSymbol)
-        fn = self.FN(classSymbol)
-        if tp+fn == 0:
+        true_positives = self.tp(class_symbol)
+        false_positives = self.fn(class_symbol)
+        if true_positives + false_positives == 0:
             return 0
         else:
-            return tp/(tp + fn)
+            return true_positives / (true_positives + false_positives)
 
-    def sensitivity(self, classSymbol=None):
+    def sensitivity(self, class_symbol=None):
         """Finds the sensitivity of the correctly classified cases.
 
             For 'Binray Classification', it is
             #TP /(#TP + #FN)
 
         Args:
-            classSymbol (object, optional): the object that is taken as
+            class_symbol (object, optional): the object that is taken as
                        true positive.
                        Defaults to None and take the first element of the
                        'targets' as true or the one that is specified in
@@ -303,21 +305,21 @@ class ClassificationMatrix:
             e 1|  FP    |   TN
             t  |        |
         """
-        tp = self.TP(classSymbol)
-        fn = self.FN(classSymbol)
-        if tp+fn == 0:
+        true_positives = self.tp(class_symbol)
+        false_positives = self.fn(class_symbol)
+        if true_positives + false_positives == 0:
             return 0
         else:
-            return tp/(tp + fn)
+            return true_positives / (true_positives + false_positives)
 
-    def specificity(self, classSymbol=None):
+    def specificity(self, class_symbol=None):
         """Finds the specificity of the correctly classified cases.
 
             For 'Binray Classification', it is
             #TN /(#TN + #FP)
 
         Args:
-            classSymbol (object, optional): the object that is taken as
+            class_symbol (object, optional): the object that is taken as
                        true positive.
                        Defaults to None and take the first element of the
                        'targets' as true or the one that is specified in
@@ -337,20 +339,20 @@ class ClassificationMatrix:
             e 1|  FP    |   TN
             t  |        |
         """
-        tn = self.TN(classSymbol)
-        fp = self.FP(classSymbol)
-        if tn+fp == 0:
+        true_negatives = self.tn(class_symbol)
+        false_positives = self.fp(class_symbol)
+        if true_negatives + false_positives == 0:
             return 0
         else:
-            return tn/(tn + fp)
+            return true_negatives / (true_negatives + false_positives)
 
-    def f1(self, classSymbol=None):
-        """ F1 score of correctly classified cases.
+    def f1(self, class_symbol=None):
+        """F1 score of correctly classified cases.
 
             f1 = (2 * precision * recall)/ (precision + recall)
 
         Args:
-            classSymbol (object, optional): the object that is taken as
+            class_symbol (object, optional): the object that is taken as
                        true positive.
                        Defaults to None and take the first element of the
                        'targets' as true or the one that is specified in
@@ -370,15 +372,15 @@ class ClassificationMatrix:
             e 1|  FP    |   TN
             t  |        |
         """
-        return self.f_beta(beta=1, classSymbol=classSymbol)
+        return self.f_beta(beta=1, class_symbol=class_symbol)
 
-    def matthews_corrcoef(self, classSymbol=None):
-        """ Matthews correlation coefficient of correctly classified cases.
+    def matthews_corrcoef(self, class_symbol=None):
+        """Matthews correlation coefficient of correctly classified cases.
 
            MCC = (TP*TN - FP*FN)/ (TP+FP)(TP+FN)(TN+FP)(TN+FN)
 
         Args:
-            classSymbol (object, optional): the object that is taken as
+            class_symbol (object, optional): the object that is taken as
                        true positive.
                        Defaults to None and take the first element of the
                        'targets' as true or the one that is specified in
@@ -399,18 +401,25 @@ class ClassificationMatrix:
             e 1|  FP    |   TN
             t  |        |
         """
-        tp = self.TP(classSymbol)
-        tn = self.TN(classSymbol)
-        fp = self.FP(classSymbol)
-        fn = self.FN(classSymbol)
-        denom = (tp+fp)*(tp+fn)*(tn+fp)*(tn+fn)
+        true_positives = self.tp(class_symbol)
+        true_negatives = self.tn(class_symbol)
+        false_positives = self.fp(class_symbol)
+        false_negatives = self.fn(class_symbol)
+        denom = (
+            (true_positives + false_positives)
+            * (true_positives + false_negatives)
+            * (true_negatives + false_positives)
+            * (true_negatives + false_negatives)
+        )
         if denom == 0:
             return np.inf
         else:
-            return (tp*tn - fp*fn)/denom
+            return (
+                true_positives * true_negatives - false_positives * false_negatives
+            ) / denom
 
-    def f_beta(self, beta=1.0, classSymbol=None):
-        """ F-beta score of correctly classified cases.
+    def f_beta(self, beta=1.0, class_symbol=None):
+        """F-beta score of correctly classified cases.
 
             f-beta =
             ((1+beta^2) * precision * recall)/ (beta^2 * precision + recall)
@@ -419,7 +428,7 @@ class ClassificationMatrix:
             beta (float, optional): Weight factor to control the precision
                        or recall importance. The higher beta means more recall
                        importance. Defaults to 1.0.
-            classSymbol (object, optional): the object that is taken as
+            class_symbol (object, optional): the object that is taken as
                        true positive.
                        Defaults to None and take the first element of the
                        'targets' as true or the one that is specified in
@@ -439,10 +448,10 @@ class ClassificationMatrix:
             e 1|  FP    |   TN
             t  |        |
         """
-        p = self.precision(classSymbol)
-        r = self.recall(classSymbol)
-        beta_2 = beta**2
-        if p+r == 0:
+        precision = self.precision(class_symbol)
+        recall = self.recall(class_symbol)
+        beta_2 = beta ** 2
+        if precision + recall == 0:
             return 0
         else:
-            return ((1 + beta_2)*p*r)/(beta_2*p+r)
+            return ((1 + beta_2) * precision * recall) / (beta_2 * precision + recall)

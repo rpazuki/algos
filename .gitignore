@@ -28,3 +28,4 @@ MANIFEST
 .venv/
 .vscode/
 .ipynb_checkpoints
+**/data/**

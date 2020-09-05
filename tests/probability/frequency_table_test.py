@@ -192,3 +192,12 @@ def test_add_frequency_table():
         freq_table3.frequencies(normalised=True), [7 / 32, 4 / 32, 11 / 32, 10 / 32]
     )
     assert_array_equal(freq_table3.frequencies(normalised=False), [7, 4, 11, 10])
+
+
+def test_product_frequency_table():
+    freq_table1 = FrequencyTable({"A": 3, "B": 4, "C": 7})
+    freq_table2 = FrequencyTable({"A": 4, "C": 4, "D": 10})
+
+    # different tables
+    freq_table3 = freq_table1 * freq_table2
+    print(freq_table3)

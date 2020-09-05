@@ -225,6 +225,50 @@ class FrequencyTable:
         else:
             return self.__counter[key]
 
+    def keys(self):
+        return self.__counter.keys()
+
+    def items(self):
+        return self.__counter.items()
+
+    def np_keys(self):
+        return np.array(list(self.__counter.keys()), dtype=np.dtype("O"))
+
+    def tuple_keys(self):
+        return [tuple(key) for key in self.__counter.keys()]
+
+    def most_common(self, num: int = None):
+        """List the n most common elements and their counts from the most
+            common to the least. If n is None, then list all element counts.
+
+        Args:
+            num (int, optional): The maximum length of the returned list.
+                               Defaults to None.
+
+        Returns:
+            list: A list of tuples. The first element of the tuple is a class
+                  key and th second one is its count.
+        """
+        return self.__counter.most_common(num)
+
+    def product(self, right):
+        if not isinstance(right, FrequencyTable):
+            raise ValueError("The 'right' argument must be a FrequencyTable.")
+
+        if right is self:
+            names = [f"{self.discrete_rv.name}1", f"{self.discrete_rv.name}2"]
+        else:
+            names = [self.discrete_rv.name, right.discrete_rv.name]
+
+        return DiscreteDistribution(
+            {
+                (tuple(k1) + tuple(k2)): v1 * v2
+                for k1, v1 in self.items()
+                for k2, v2 in right.items()
+            },
+            names,
+        )
+
     def __getitem__(self, key):
         """An indexer that returns the count of the class key.
 
@@ -259,28 +303,8 @@ class FrequencyTable:
 
         return FrequencyTable(this_copy)
 
-    def keys(self):
-        return self.__counter.keys()
-
-    def np_keys(self):
-        return np.array(list(self.__counter.keys()), dtype=np.dtype("O"))
-
-    def tuple_keys(self):
-        return [tuple(key) for key in self.__counter.keys()]
-
-    def most_common(self, num: int = None):
-        """List the n most common elements and their counts from the most
-            common to the least. If n is None, then list all element counts.
-
-        Args:
-            num (int, optional): The maximum length of the returned list.
-                               Defaults to None.
-
-        Returns:
-            list: A list of tuples. The first element of the tuple is a class
-                  key and th second one is its count.
-        """
-        return self.__counter.most_common(num)
+    def __mul__(self, that):
+        return self.product(that)
 
 
 class DiscreteDistribution(FrequencyTable):

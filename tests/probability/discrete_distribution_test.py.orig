@@ -1,5 +1,8 @@
 import pytest
+<<<<<<< HEAD
+=======
 import numpy as np
+>>>>>>> 4e76e52
 from numpy.testing import assert_array_equal as assert_arr
 from probability.distributions import DiscreteDistribution
 
@@ -24,6 +27,8 @@ def test_invalid_samples_discrete_distribution():
         )
 
 
+<<<<<<< HEAD
+=======
 def test_iterable_samples_discrete_distribution():
     samples = """It is a long established fact that a reader will be
      distracted by the readable content of a page when looking at its
@@ -54,6 +59,7 @@ def test_numpy_array_discrete_distribution():
     assert dist.probability(("A",)) == 0.24
 
 
+>>>>>>> 4e76e52
 def test_one_levels_discrete_distribution():
     dist = DiscreteDistribution({"Dog": 2})
     assert dist.rvs.size == 1

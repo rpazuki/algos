@@ -14,10 +14,15 @@ class DiscreteRV:
         """
         self.name = str(name)
         self.levels = set(levels)
-        self.levels_len = len(self.levels)
 
     def __len__(self):
         return len(self.levels)
+
+    def __str__(self):
+        return f"'{self.name}': {self.levels}"
+
+    def __repr__(self):
+        return self.__str__()
 
 
 class MultiDiscreteRV:
@@ -30,7 +35,7 @@ class MultiDiscreteRV:
            provided.
 
         Args:
-            features (list): A list of objects or tuples that contains the independent
+            features (iter): A list of objects or tuples that contains the independent
                              variables' values.
             names (list, optional): A list of random variable names. Defaults to None.
             variable_name (str, optional): The prefix for automatic name generation.
@@ -44,7 +49,7 @@ class MultiDiscreteRV:
         """
         # To check the consistency of the tuples, save
         # the length of the first one and check all the others
-        first_row = features[0]
+        first_row = next(iter(features))
         if isinstance(first_row, tuple):
             rv_len = len(first_row)
         else:
@@ -61,7 +66,11 @@ class MultiDiscreteRV:
         else:
             self.names = np.array(names)
         # Each RV has its own set of levels
-        levels = np.array([set() for i in range(rv_len)])
+        if rv_len > 1:
+            first_row_t = tuple(first_row)
+            levels = np.array([{first_row_t[i]} for i in range(rv_len)])
+        else:
+            levels = np.array([{first_row}])
         # We suppose the classes were tuples
         # and each Random Variable (RV) is positioned
         # in a fix place of the n-tuple.
@@ -76,7 +85,7 @@ class MultiDiscreteRV:
                 for i, level in enumerate(row):
                     levels[i] |= {level}
         else:
-            levels[0] = set(features)
+            levels[0] = {first_row} | set(features)
         # Store the DiscreteRV as a dictionary
         self.multi_rvs = {
             name: DiscreteRV(name, l) for name, l in zip(self.names, levels)
@@ -84,6 +93,8 @@ class MultiDiscreteRV:
         # The size of the MultiDiscreteRV is the same
         # as the number RVs or their names
         self.size = len(self.names)
+        #
+        self.levels = np.array([item.levels for item in self.multi_rvs.values()])
 
     def __getitem__(self, rv_index):
         """An indexer by position (int) or name (str).
@@ -102,29 +113,6 @@ class MultiDiscreteRV:
         else:
             raise ValueError("The provided index is not 'int' or 'str'.")
 
-    def has_rv(self, name):
-        """Check the name of the random variable.
-
-        Args:
-            name (str): Name of the random variables.
-
-        Returns:
-            [bool]: True or False
-        """
-        return name in self.multi_rvs
-
-    def __len__(self):
-        return len(self.names)
-
-    def all_levels(self):
-        """Return a list of all the levels of random variables.
-            levels are set.
-
-        Returns:
-            list: List of all the levels of random variables.
-        """
-        return [item.levels for item in self.multi_rvs.values()]
-
     def index_of(self, name):
         """Finds the index of the random variable from its name.
 
@@ -134,11 +122,31 @@ class MultiDiscreteRV:
         Returns:
             int: Index of the random variable.
         """
-        indices = np.argwhere(self.names == name)
-        if indices.shape[0] == 0:
+        indices = [i for i, n in enumerate(self.names) if n == name]
+        if len(indices) == 0:
             return -1
         else:
-            return indices[0][0]
+            return indices[0]
+
+    def __len__(self):
+        return len(self.names)
+
+    def __str__(self):
+        return "".join([f"{s}\n" for s in self.multi_rvs.values()])
+
+    def __repr__(self):
+        return self.__str__()
+
+    def __contains__(self, name):
+        """Check the name of the random variable.
+
+        Args:
+            name (str): Name of the random variables.
+
+        Returns:
+            [bool]: True or False
+        """
+        return name in self.multi_rvs
 
 
 class FrequencyTable:
@@ -161,11 +169,11 @@ class FrequencyTable:
         if samples is None:
             raise ValueError("samples argument is None.")
         # A private Counter object
-        self.__counter = Counter(samples)
+        self._counter = Counter(samples)
         # Elements count
-        self.total = np.sum([i for i in self.__counter.values()])
+        self.total = np.sum([i for i in self._counter.values()])
         # Random varable's details
-        self.discrete_rv = DiscreteRV(name, levels=self.__counter.keys())
+        self.discrete_rv = DiscreteRV(name, levels=self._counter.keys())
 
     def frequencies(self, normalised=True):
         """A list of frequencies of class occurenc.
@@ -177,19 +185,16 @@ class FrequencyTable:
         Returns:
             list: A list of floats or integers, depending of normalisation.
         """
-        if self.total == 0 and len(self.discrete_rv) != 0:
+        if self.total == 0:
             return np.zeros(len(self.discrete_rv))
-        elif self.total == 0:
-            return np.array([])
 
         if normalised:
-            return np.array([v for v in self.__counter.values()]) / self.total
+            return np.array([v for v in self._counter.values()]) / self.total
         else:
-            return np.array([v for v in self.__counter.values()])
+            return np.array([v for v in self._counter.values()])
 
     def probability(self, key):
-        """Gets the probability of the random variable, when
-           its value is 'key'.
+        """Gets the probability of the random variable, when its value is 'key'.
 
            It return zero if the value is not observed.
 
@@ -205,8 +210,7 @@ class FrequencyTable:
         return self.__getitem__(key) / self.total
 
     def frequency(self, key, normalised=False):
-        """Gets the frequency of the random variable, when
-           its value is 'key'.
+        """Gets the frequency of the random variable, when its value is 'key'.
 
            It return zero if the value is not observed.
 
@@ -221,9 +225,35 @@ class FrequencyTable:
             return 0
 
         if normalised:
-            return self.__counter[key] / self.total
+            return self._counter[key] / self.total
         else:
-            return self.__counter[key]
+            return self._counter[key]
+
+    def keys(self):
+        return self._counter.keys()
+
+    def items(self):
+        return self._counter.items()
+
+    def keys_as_numpy_arr(self):
+        return np.array(list(self._counter.keys()), dtype=np.dtype("O"))
+
+    def keys_as_tuple(self):
+        return [tuple(key) for key in self._counter.keys()]
+
+    def most_common(self, num: int = None):
+        """List the n most common elements and their counts from the most
+            common to the least. If n is None, then list all element counts.
+
+        Args:
+            num (int, optional): The maximum length of the returned list.
+                               Defaults to None.
+
+        Returns:
+            list: A list of tuples. The first element of the tuple is a class
+                  key and th second one is its count.
+        """
+        return self._counter.most_common(num)
 
     def __getitem__(self, key):
         """An indexer that returns the count of the class key.
@@ -243,14 +273,18 @@ class FrequencyTable:
         if self.total == 0:
             return 0
 
-        return self.__counter[key]
+        if isinstance(key, slice):
+
+            return [(k, v) for k, v in self._counter.items()][key]
+        else:
+            return self._counter[key]
 
     def __add__(self, that):
         """Combines two FrequencyTable and return
         a new one. All the frequencies are sum together.
         This is not a mathematical sum.
         """
-        this_copy = self.__counter.copy()
+        this_copy = self._counter.copy()
         for key in that.keys():
             if key in this_copy:
                 this_copy[key] += that[key]
@@ -259,28 +293,17 @@ class FrequencyTable:
 
         return FrequencyTable(this_copy)
 
-    def keys(self):
-        return self.__counter.keys()
+    def __contains__(self, key):
+        return key in self._counter
 
-    def np_keys(self):
-        return np.array(list(self.__counter.keys()), dtype=np.dtype("O"))
+    def __iter__(self):
+        return iter(self._counter.keys())
 
-    def tuple_keys(self):
-        return [tuple(key) for key in self.__counter.keys()]
+    def __str__(self):
+        return f"Frequency table (rv:'{self.discrete_rv.name}', total:{self.total})"
 
-    def most_common(self, num: int = None):
-        """List the n most common elements and their counts from the most
-            common to the least. If n is None, then list all element counts.
-
-        Args:
-            num (int, optional): The maximum length of the returned list.
-                               Defaults to None.
-
-        Returns:
-            list: A list of tuples. The first element of the tuple is a class
-                  key and th second one is its count.
-        """
-        return self.__counter.most_common(num)
+    def __repr__(self):
+        return self.__str__()
 
 
 class DiscreteDistribution(FrequencyTable):
@@ -296,14 +319,65 @@ class DiscreteDistribution(FrequencyTable):
             samples (iterable): An iterable that contains the observed samples
                                 or a dictionary of (key:frequency).
             names (list, optional): List of names of the random variables.
+                                    If it is not provided, it creates as 'Xn'.
                                     Defaults to None.
         """
         super().__init__(samples)
         features = list(self.keys())
         self.rvs = MultiDiscreteRV(features, names)
+        # Remove the discrete_rv from super class
+        del self.discrete_rv
         self.names = self.rvs.names
 
-    def marginal_by_indices(self, by_indices):
+    @classmethod
+    def from_np_array(cls, samples, names=None):
+        """Construct a DiscreteDistribution from a 2d numpy array or list of lists.
+           The resulting keys are tuples.
+
+        Args:
+            samples (list or numpy.ndarray): the observed samples.
+            names (list, optional): List of names of the random variables.
+                                    If it is not provided, it creates as 'Xn'.
+                                    Defaults to None.
+
+        Raises:
+            ValueError: Raises when the samples argument is not list or
+                        numpy.ndarray.
+        """
+        if not isinstance(samples, (np.ndarray, list)):
+            raise ValueError(
+                "'sample' argument must be numpy 2D ndarray or list of list."
+            )
+        elif isinstance(samples, list) and not isinstance(samples[0], list):
+            raise ValueError(
+                "'sample' argument must be numpy 2D ndarray or list of list."
+            )
+        # Convert rows to element, before calling
+        # the construct
+        return cls(samples=[tuple(row) for row in samples], names=names)
+
+    @classmethod
+    def genfromtxt(cls, fname, dtypes, names=None, **kwargs):
+        """Calls numpy genfromtxt to load the data.
+           The resulting keys are tuples.
+
+        Args:
+            fname (ile, str, pathlib.Path): file name
+            dtypes (dtype, optional): Data type of the resulting array.
+                   If None, the dtypes will be determined by the contents
+                   of each column, individually.
+            names ([type], optional):(list, optional): List of names of the
+                                    random variables.
+                                    If it is not provided, it creates as 'Xn'.
+                                    Defaults to None.
+
+        """
+        samples = np.genfromtxt(fname, dtypes, **kwargs)
+        # Convert rows to element, before calling
+        # the construct
+        return cls(samples=[tuple(row) for row in samples], names=names)
+
+    def __marginal_by_indices(self, by_indices):
         """Marginalize the distribution over a set of random variables.
 
         Args:
@@ -378,13 +452,13 @@ class DiscreteDistribution(FrequencyTable):
             DiscreteDistribution: A marginalised distribution.
         """
         for name in by_names:
-            if not self.rvs.has_rv(name):
+            if name not in self.rvs:
                 raise ValueError(f"Random variable {name} is" f" not defined.")
 
         by_indices = [i for i, name in enumerate(self.rvs.names) if name in by_names]
-        return self.marginal_by_indices(by_indices)
+        return self.__marginal_by_indices(by_indices)
 
-    def reduce_by_indices(self, by_indices):
+    def __reduce_by_indices(self, by_indices):
         """Reduce the distribution by one or more factors.
 
         Args:
@@ -444,18 +518,18 @@ class DiscreteDistribution(FrequencyTable):
             [DiscreteDistribution]: A reduce distribution.
         """
         for name in by_names:
-            if not self.rvs.has_rv(name):
+            if name not in self.rvs:
                 raise ValueError(f"Random variable {name} is" f" not defined.")
 
         by_indices = {self.rvs.index_of(rv): value for rv, value in by_names.items()}
-        return self.reduce_by_indices(by_indices)
+        return self.__reduce_by_indices(by_indices)
 
-    def conditional_by_indices(self, provided_indices):
+    def __condition_on_by_indices(self, on_names_indices):
         """Creates the conditional distribution based on
            the provided indices of random variables.
 
         Args:
-            provided_indices (list): List of indices of given random
+            on_names_indices (list): List of indices of provided random
                                      variables.
 
         Raises:
@@ -466,35 +540,35 @@ class DiscreteDistribution(FrequencyTable):
         Returns:
             DiscreteConditionalDistribution
         """
-        if provided_indices is None:
+        if on_names_indices is None:
             raise ValueError("The 'provided_indices' argument is None.")
         if len(self.rvs) == 1:
             raise TypeError("This is a single random variable distribution.")
 
         # Store the indices for marginalization as a numpy array
-        rvs_indices = np.sort(np.r_[provided_indices])
+        rvs_indices = np.sort(np.r_[on_names_indices])
         # Find the complement indices of 'provided_indices' list
         complement = np.array([i for i in range(len(self.rvs)) if i not in rvs_indices])
         # p(x, y, z | a, b) = p(x, y, z , a, b)/ p(a, b)
         #
         # marginal_dist := p(a, b)
-        marginal_dist = self.marginal_by_indices(complement)
+        marginal_dist = self.__marginal_by_indices(complement)
         #
         distributions = {}
         for key in marginal_dist.keys():
             key_as_tuple = tuple(key)
             by_index = {index: key_as_tuple[i] for i, index in enumerate(rvs_indices)}
-            distributions[key] = self.reduce_by_indices(by_index)
+            distributions[key] = self.__reduce_by_indices(by_index)
         return DiscreteConditionalDistribution(
             distributions, self.rvs.names[rvs_indices]
         )
 
-    def conditional(self, provided):
+    def condition_on(self, on_names):
         """Creates the conditional distribution based on
            the provided names of random variables.
 
         Args:
-            provided (list): List of names of given random
+            on_names (list): List of names of provided random
                              variables.
 
         Raises:
@@ -503,12 +577,12 @@ class DiscreteDistribution(FrequencyTable):
         Returns:
             DiscreteConditionalDistribution
         """
-        for name in provided:
-            if not self.rvs.has_rv(name):
+        for name in on_names:
+            if name not in self.rvs:
                 raise ValueError(f"Random variable {name} is" f" not defined.")
 
-        by_indices = [i for i, name in enumerate(self.rvs.names) if name in provided]
-        return self.conditional_by_indices(by_indices)
+        by_indices = [i for i, name in enumerate(self.rvs.names) if name in on_names]
+        return self.__condition_on_by_indices(by_indices)
 
     def __lshift__(self, by_indices):
         """marginalization operator"""
@@ -516,16 +590,35 @@ class DiscreteDistribution(FrequencyTable):
 
     def __or__(self, provided):
         """conditional operator"""
-        return self.conditional(provided)
+        return self.condition_on(provided)
+
+    def __str__(self):
+        return f"Discrete Distribution (total:{self.total}):\n{self.rvs}"
+
+    def __repr__(self):
+        return self.__str__()
 
 
 class DiscreteConditionalDistribution:
     def __init__(self, distributions, conditional_names):
+        """Create a conditional distributions.
+
+        Args:
+            distributions (dict): a dictionary of (key:DiscreteDistribution)
+                                  where key is the value of the random variables
+                                  that is conditioned on.
+            conditional_names ([type]): [description]
+        """
         self.conditional_rvs = MultiDiscreteRV(
             list(distributions.keys()), conditional_names
         )
         # For each conditional levels, we store its equivalent dist.
         self.distributions = distributions
+        #
+        first_key = next(iter(distributions))
+        first_example_dist = self.distributions[first_key]
+        self.rvs = first_example_dist.rvs
+        self.names = first_example_dist.names
 
     def probability(self, key, conditional_key):
         if conditional_key not in self.distributions:
@@ -538,3 +631,22 @@ class DiscreteConditionalDistribution:
             return 0
         else:
             return self.distributions[conditional_key].frequency(key, normalised)
+
+    def __getitem__(self, key):
+        return self.distributions[key]
+
+    def __contains__(self, key):
+        return key in self.distributions
+
+    def __iter__(self):
+        return iter(self.distributions.keys())
+
+    def __str__(self):
+        return (
+            "Discrete Conditiona Distribution\n\n"
+            f"Conditioned on: \n{self.conditional_rvs}\n"
+            f"Random variable(s): \n{self.rvs}"
+        )
+
+    def __repr__(self):
+        return self.__str__()

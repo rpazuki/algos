@@ -1,4 +1,5 @@
 import pytest
+import numpy as np
 from numpy.testing import assert_array_equal as assert_arr
 from probability.distributions import DiscreteDistribution
 
@@ -21,6 +22,36 @@ def test_invalid_samples_discrete_distribution():
         DiscreteDistribution(
             {("b", "x"): 2, ("B", "b"): 3, ("A", "b", "y"): 2, ("A", "b", "z"): 5}
         )
+
+
+def test_iterable_samples_discrete_distribution():
+    samples = """It is a long established fact that a reader will be
+     distracted by the readable content of a page when looking at its
+     layout. The point of using Lorem Ipsum is that it has a more-or-less
+     normal distribution of letters, as opposed to using 'Content here,
+     content here', making it look like readable English."""
+    dist = DiscreteDistribution(iter(samples))
+    assert dist.total == len(samples)
+
+    gen = (c for c in samples)
+    dist = DiscreteDistribution(gen)
+    assert dist.total == len(samples)
+
+
+def test_numpy_array_discrete_distribution():
+    # It is not numpy array
+    with pytest.raises(ValueError):
+        DiscreteDistribution.from_np_array({1, 2, 3})
+
+    # It is not list of list
+    with pytest.raises(ValueError):
+        DiscreteDistribution.from_np_array([1, 2, 3])
+
+    samples = np.r_[["A"] * 24, ["B"] * 48, ["C"] * 4, ["D"] * 7, ["E"] * 17]
+    samples = samples.reshape((samples.shape[0], 1))
+    dist = DiscreteDistribution.from_np_array(samples)
+    assert dist.total == 100
+    assert dist.probability(("A",)) == 0.24
 
 
 def test_one_levels_discrete_distribution():

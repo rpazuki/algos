@@ -1,46 +1,52 @@
 import pytest
-import numpy as np
-from numpy.testing import assert_array_equal as assert_arr
 from probability.distributions import DiscreteDistribution
+from tests.helpers import compare
 
 
 def test_marginals_names_exception_discrete_distribution():
-    with pytest.raises(TypeError):
+    # Wrong rv name
+    with pytest.raises(ValueError):
         samples = {"a": 3, "b": 4, "c": 5}
         disc_dist = DiscreteDistribution(samples)
         disc_dist.marginal(["X1"])
-
+    # Wrong rv name
     with pytest.raises(ValueError):
         samples = {("a", "x"): 4, ("a", "y"): 4, ("b", "x"): 6, ("b", "y"): 6}
         disc_dist = DiscreteDistribution(samples)
         disc_dist.marginal(["X0"])
-
+    # Wrong rv name
     with pytest.raises(ValueError):
         samples = {("a", "x"): 4, ("a", "y"): 4, ("b", "x"): 6, ("b", "y"): 6}
         disc_dist = DiscreteDistribution(samples)
         disc_dist.marginal(["X3"])
-
+    # Wrong rv name
     with pytest.raises(ValueError):
         samples = {("a", "x"): 4, ("a", "y"): 4, ("b", "x"): 6, ("b", "y"): 6}
         disc_dist = DiscreteDistribution(samples)
         disc_dist2 = disc_dist.marginal(["X1"])
         disc_dist2.marginal(["X1"])
-
+    # Wrong rv name
     with pytest.raises(ValueError):
         samples = {("a", "x"): 4, ("a", "y"): 4, ("b", "x"): 6, ("b", "y"): 6}
         disc_dist = DiscreteDistribution(samples, names=["Y", "Z"])
         disc_dist.marginal(["X1"])
-
+    # Wrong rv name
     with pytest.raises(ValueError):
         samples = {("a", "x"): 4, ("a", "y"): 4, ("b", "x"): 6, ("b", "y"): 6}
         disc_dist = DiscreteDistribution(samples, names=["Y", "Z"])
         disc_dist.marginal(["X1"])
-
+    # Wrong rv name
     with pytest.raises(ValueError):
         samples = {("a", "x"): 4, ("a", "y"): 4, ("b", "x"): 6, ("b", "y"): 6}
         disc_dist = DiscreteDistribution(samples, names=["Y", "Z"])
         disc_dist2 = disc_dist.marginal(["Y"])
         disc_dist2.marginal(["Y"])
+
+    # Marginalize over all vars
+    with pytest.raises(ValueError):
+        samples = {("a", "x"): 4, ("a", "y"): 4, ("b", "x"): 6, ("b", "y"): 6}
+        disc_dist = DiscreteDistribution(samples, names=["Y", "Z"])
+        disc_dist2 = disc_dist.marginal(["Y", "Z"])
 
 
 def test_marginals_names_discrete_distribution():
@@ -48,18 +54,18 @@ def test_marginals_names_discrete_distribution():
     disc_dist = DiscreteDistribution(samples)
 
     disc_dist2 = disc_dist.marginal(["X1"])
-    assert_arr(disc_dist2.names, ["X2"])
+    assert all(compare(disc_dist2.names, ["X2"]))
 
     disc_dist2 = disc_dist.marginal(["X2"])
-    assert_arr(disc_dist2.names, ["X1"])
+    assert all(compare(disc_dist2.names, ["X1"]))
     #
     disc_dist = DiscreteDistribution(samples, names=["Y", "Z"])
 
     disc_dist2 = disc_dist.marginal(["Y"])
-    assert_arr(disc_dist2.names, ["Z"])
+    assert all(compare(disc_dist2.names, ["Z"]))
 
     disc_dist2 = disc_dist.marginal(["Z"])
-    assert_arr(disc_dist2.names, ["Y"])
+    assert all(compare(disc_dist2.names, ["Y"]))
 
     # Three levels dist.
     samples = {
@@ -76,51 +82,69 @@ def test_marginals_names_discrete_distribution():
     disc_dist = DiscreteDistribution(samples)
 
     disc_dist2 = disc_dist.marginal(["X1"])
-    assert_arr(disc_dist2.names, ["X2", "X3"])
+    assert all(compare(disc_dist2.names, ["X2", "X3"]))
 
     disc_dist2 = disc_dist.marginal(["X2"])
-    assert_arr(disc_dist2.names, ["X1", "X3"])
+    assert all(compare(disc_dist2.names, ["X1", "X3"]))
 
     disc_dist2 = disc_dist.marginal(["X3"])
-    assert_arr(disc_dist2.names, ["X1", "X2"])
+    assert all(compare(disc_dist2.names, ["X1", "X2"]))
 
     disc_dist2 = disc_dist.marginal(["X1", "X3"])
-    assert_arr(disc_dist2.names, ["X2"])
+    assert all(compare(disc_dist2.names, ["X2"]))
 
     disc_dist2 = disc_dist.marginal(["X2", "X3"])
-    assert_arr(disc_dist2.names, ["X1"])
+    assert all(compare(disc_dist2.names, ["X1"]))
 
     #
     disc_dist = DiscreteDistribution(samples, names=["Y", "Z", "W"])
 
     disc_dist2 = disc_dist.marginal(["Y"])
-    assert_arr(disc_dist2.names, ["Z", "W"])
+    assert all(compare(disc_dist2.names, ["Z", "W"]))
 
     disc_dist2 = disc_dist.marginal(["Z"])
-    assert_arr(disc_dist2.names, ["Y", "W"])
+    assert all(compare(disc_dist2.names, ["Y", "W"]))
 
     disc_dist2 = disc_dist.marginal(["W"])
-    assert_arr(disc_dist2.names, ["Y", "Z"])
+    assert all(compare(disc_dist2.names, ["Y", "Z"]))
 
     disc_dist2 = disc_dist.marginal(["Y", "W"])
-    assert_arr(disc_dist2.names, ["Z"])
+    assert all(compare(disc_dist2.names, ["Z"]))
 
     disc_dist2 = disc_dist.marginal(["Z", "W"])
-    assert_arr(disc_dist2.names, ["Y"])
+    assert all(compare(disc_dist2.names, ["Y"]))
 
 
 def test_marginals_discrete_distribution():
     # Single RV dist.
-    with pytest.raises(TypeError):
+    with pytest.raises(ValueError):
         disc_dist = DiscreteDistribution({"A": 2, "B": 3, "C": 4})
         disc_dist.marginal(["X1"])
 
     # Two levels dist.
+    samples = {(1, 1): 4, (1, 2): 4, (2, 1): 6, (2, 2): 6}
+    disc_dist = DiscreteDistribution(samples)
+    disc_dist2 = disc_dist.marginal(["X1"])
+    assert disc_dist2.total == disc_dist.total
+    assert all(compare(disc_dist2.keys_as_list(), [1, 2]))
+    assert disc_dist2[1] == 10
+    assert disc_dist2[2] == 10
+    assert disc_dist2.probability(1) == 0.5
+    assert disc_dist2.probability(2) == 0.5
+
+    disc_dist2 = disc_dist.marginal(["X2"])
+    assert disc_dist2.total == disc_dist.total
+    assert all(compare(disc_dist2.keys_as_list(), [1, 2]))
+    assert disc_dist2[1] == 8
+    assert disc_dist2[2] == 12
+    assert disc_dist2.probability(1) == 0.4
+    assert disc_dist2.probability(2) == 0.6
+
     samples = {("a", "x"): 4, ("a", "y"): 4, ("b", "x"): 6, ("b", "y"): 6}
     disc_dist = DiscreteDistribution(samples)
     disc_dist2 = disc_dist.marginal(["X1"])
     assert disc_dist2.total == disc_dist.total
-    assert_arr(disc_dist2.keys_as_numpy_arr(), ["x", "y"])
+    assert all(compare(disc_dist2.keys_as_list(), ["x", "y"]))
     assert disc_dist2["x"] == 10
     assert disc_dist2["y"] == 10
     assert disc_dist2.probability("x") == 0.5
@@ -128,7 +152,7 @@ def test_marginals_discrete_distribution():
 
     disc_dist2 = disc_dist.marginal(["X1"])
     assert disc_dist2.total == disc_dist.total
-    assert_arr(disc_dist2.keys_as_numpy_arr(), ["x", "y"])
+    assert all(compare(disc_dist2.keys_as_list(), ["x", "y"]))
     assert disc_dist2["x"] == 10
     assert disc_dist2["y"] == 10
     assert disc_dist2.probability("x") == 0.5
@@ -136,7 +160,7 @@ def test_marginals_discrete_distribution():
 
     disc_dist2 = disc_dist.marginal(["X2"])
     assert disc_dist2.total == disc_dist.total
-    assert_arr(disc_dist2.keys_as_numpy_arr(), ["a", "b"])
+    assert all(compare(disc_dist2.keys_as_list(), ["a", "b"]))
     assert disc_dist2["a"] == 8
     assert disc_dist2["b"] == 12
     assert disc_dist2.probability("a") == 0.4
@@ -156,9 +180,8 @@ def test_marginals_discrete_distribution():
     disc_dist = DiscreteDistribution(samples)
     disc_dist2 = disc_dist.marginal(["X1"])
     assert disc_dist2.total == disc_dist.total
-    assert_arr(
-        disc_dist2.keys_as_numpy_arr(),
-        np.array([("x", 1), ("x", 2), ("y", 1), ("y", 2)], dtype=np.object),
+    assert all(
+        compare(disc_dist2.keys_as_list(), [("x", 1), ("x", 2), ("y", 1), ("y", 2)])
     )
     assert disc_dist2[("x", 1)] == 12
     assert disc_dist2[("x", 2)] == 12
@@ -171,9 +194,8 @@ def test_marginals_discrete_distribution():
 
     disc_dist2 = disc_dist.marginal(["X2"])
     assert disc_dist2.total == disc_dist.total
-    assert_arr(
-        disc_dist2.keys_as_numpy_arr(),
-        np.array([("a", 1), ("a", 2), ("b", 1), ("b", 2)], dtype=np.object),
+    assert all(
+        compare(disc_dist2.keys_as_list(), [("a", 1), ("a", 2), ("b", 1), ("b", 2)])
     )
     assert disc_dist2[("a", 1)] == 10
     assert disc_dist2[("a", 2)] == 10
@@ -186,9 +208,10 @@ def test_marginals_discrete_distribution():
 
     disc_dist2 = disc_dist.marginal(["X3"])
     assert disc_dist2.total == disc_dist.total
-    assert_arr(
-        disc_dist2.keys_as_numpy_arr(),
-        np.array([("a", "x"), ("a", "y"), ("b", "x"), ("b", "y")], dtype=np.object),
+    assert all(
+        compare(
+            disc_dist2.keys_as_list(), [("a", "x"), ("a", "y"), ("b", "x"), ("b", "y")]
+        )
     )
     assert disc_dist2[("a", "x")] == 8
     assert disc_dist2[("a", "y")] == 12
@@ -201,7 +224,7 @@ def test_marginals_discrete_distribution():
 
     disc_dist2 = disc_dist.marginal(["X1", "X2"])
     assert disc_dist2.total == disc_dist.total
-    assert_arr(disc_dist2.keys_as_numpy_arr(), np.array([1, 2], dtype=np.object))
+    assert all(compare(disc_dist2.keys_as_list(), [1, 2]))
     assert disc_dist2[1] == 28
     assert disc_dist2[2] == 28
     assert disc_dist2.probability(1) == 28 / 56
@@ -209,7 +232,7 @@ def test_marginals_discrete_distribution():
 
     disc_dist2 = disc_dist.marginal(["X1", "X3"])
     assert disc_dist2.total == disc_dist.total
-    assert_arr(disc_dist2.keys_as_numpy_arr(), np.array(["x", "y"], dtype=np.object))
+    assert all(compare(disc_dist2.keys_as_list(), ["x", "y"]))
     assert disc_dist2["x"] == 24
     assert disc_dist2["y"] == 32
     assert disc_dist2.probability("x") == 24 / 56
@@ -217,7 +240,7 @@ def test_marginals_discrete_distribution():
 
     disc_dist2 = disc_dist.marginal(["X2", "X3"])
     assert disc_dist2.total == disc_dist.total
-    assert_arr(disc_dist2.keys_as_numpy_arr(), np.array(["a", "b"], dtype=np.object))
+    assert all(compare(disc_dist2.keys_as_list(), ["a", "b"]))
     assert disc_dist2["a"] == 20
     assert disc_dist2["b"] == 36
     assert disc_dist2.probability("a") == 20 / 56
@@ -245,9 +268,9 @@ def test_marginals_discrete_distribution():
     disc_dist = DiscreteDistribution(samples)
     disc_dist2 = disc_dist.marginal(["X3"])
     assert disc_dist2.total == disc_dist.total
-    assert_arr(
-        disc_dist2.keys_as_numpy_arr(),
-        np.array(
+    assert all(
+        compare(
+            disc_dist2.keys_as_list(),
             [
                 ("a", "x", 33),
                 ("a", "x", 44),
@@ -258,8 +281,7 @@ def test_marginals_discrete_distribution():
                 ("b", "y", 33),
                 ("b", "y", 44),
             ],
-            dtype=np.object,
-        ),
+        )
     )
     assert disc_dist2[("a", "x", 33)] == 3
     assert disc_dist2[("a", "x", 44)] == 7
@@ -280,9 +302,9 @@ def test_marginals_discrete_distribution():
 
     disc_dist2 = disc_dist.marginal(["X4"])
     assert disc_dist2.total == disc_dist.total
-    assert_arr(
-        disc_dist2.keys_as_numpy_arr(),
-        np.array(
+    assert all(
+        compare(
+            disc_dist2.keys_as_list(),
             [
                 ("a", "x", 1),
                 ("a", "x", 2),
@@ -293,8 +315,7 @@ def test_marginals_discrete_distribution():
                 ("b", "y", 1),
                 ("b", "y", 2),
             ],
-            dtype=np.object,
-        ),
+        )
     )
     assert disc_dist2[("a", "x", 1)] == 4
     assert disc_dist2[("a", "x", 2)] == 6
@@ -315,9 +336,8 @@ def test_marginals_discrete_distribution():
 
     disc_dist2 = disc_dist.marginal(["X1", "X4"])
     assert disc_dist2.total == disc_dist.total
-    assert_arr(
-        disc_dist2.keys_as_numpy_arr(),
-        np.array([("x", 1), ("x", 2), ("y", 1), ("y", 2)], dtype=np.object),
+    assert all(
+        compare(disc_dist2.keys_as_list(), [("x", 1), ("x", 2), ("y", 1), ("y", 2)])
     )
     assert disc_dist2[("x", 1)] == 24
     assert disc_dist2[("x", 2)] == 28
@@ -330,7 +350,7 @@ def test_marginals_discrete_distribution():
 
     disc_dist2 = disc_dist.marginal(["X1", "X2", "X4"])
     assert disc_dist2.total == disc_dist.total
-    assert_arr(disc_dist2.keys_as_numpy_arr(), np.array([1, 2], dtype=np.object))
+    assert all(compare(disc_dist2.keys_as_list(), [1, 2]))
     assert disc_dist2[1] == 64
     assert disc_dist2[2] == 72
     assert disc_dist2.probability(1) == 64 / 136
@@ -340,7 +360,7 @@ def test_marginals_discrete_distribution():
     disc_dist2 = disc_dist.marginal(["X1", "X4"])
     disc_dist3 = disc_dist2.marginal(["X2"])
     assert disc_dist3.total == disc_dist.total
-    assert_arr(disc_dist3.keys_as_numpy_arr(), np.array([1, 2], dtype=np.object))
+    assert all(compare(disc_dist3.keys_as_list(), [1, 2]))
     assert disc_dist3[1] == 64
     assert disc_dist3[2] == 72
     assert disc_dist3.probability(1) == 64 / 136
@@ -351,7 +371,7 @@ def test_marginals_discrete_distribution():
     disc_dist3 = disc_dist2.marginal(["X3"])
     disc_dist4 = disc_dist3.marginal(["X2"])
     assert disc_dist4.total == disc_dist.total
-    assert_arr(disc_dist4.keys_as_numpy_arr(), np.array(["a", "b"], dtype=np.object))
+    assert all(compare(disc_dist4.keys_as_list(), ["a", "b"]))
     assert disc_dist4["a"] == 36
     assert disc_dist4["b"] == 100
     assert disc_dist4.probability("a") == 36 / 136
@@ -381,9 +401,9 @@ def test_marginal_by_name_discrete_distribution():
     disc_dist = DiscreteDistribution(samples, names=["Age", "Sex", "Edu", "Etn"])
     disc_dist2 = disc_dist.marginal(["Edu"])
     assert disc_dist2.total == disc_dist.total
-    assert_arr(
-        disc_dist2.keys_as_numpy_arr(),
-        np.array(
+    assert all(
+        compare(
+            disc_dist2.keys_as_list(),
             [
                 ("a", "x", 33),
                 ("a", "x", 44),
@@ -394,8 +414,7 @@ def test_marginal_by_name_discrete_distribution():
                 ("b", "y", 33),
                 ("b", "y", 44),
             ],
-            dtype=np.object,
-        ),
+        )
     )
     assert disc_dist2[("a", "x", 33)] == 3
     assert disc_dist2[("a", "x", 44)] == 7
@@ -416,9 +435,9 @@ def test_marginal_by_name_discrete_distribution():
 
     disc_dist2 = disc_dist.marginal(["Etn"])
     assert disc_dist2.total == disc_dist.total
-    assert_arr(
-        disc_dist2.keys_as_numpy_arr(),
-        np.array(
+    assert all(
+        compare(
+            disc_dist2.keys_as_list(),
             [
                 ("a", "x", 1),
                 ("a", "x", 2),
@@ -429,8 +448,7 @@ def test_marginal_by_name_discrete_distribution():
                 ("b", "y", 1),
                 ("b", "y", 2),
             ],
-            dtype=np.object,
-        ),
+        )
     )
     assert disc_dist2[("a", "x", 1)] == 4
     assert disc_dist2[("a", "x", 2)] == 6
@@ -451,9 +469,8 @@ def test_marginal_by_name_discrete_distribution():
 
     disc_dist2 = disc_dist.marginal(["Age", "Etn"])
     assert disc_dist2.total == disc_dist.total
-    assert_arr(
-        disc_dist2.keys_as_numpy_arr(),
-        np.array([("x", 1), ("x", 2), ("y", 1), ("y", 2)], dtype=np.object),
+    assert all(
+        compare(disc_dist2.keys_as_list(), [("x", 1), ("x", 2), ("y", 1), ("y", 2)])
     )
     assert disc_dist2[("x", 1)] == 24
     assert disc_dist2[("x", 2)] == 28
@@ -466,7 +483,7 @@ def test_marginal_by_name_discrete_distribution():
 
     disc_dist2 = disc_dist.marginal(["Age", "Sex", "Etn"])
     assert disc_dist2.total == disc_dist.total
-    assert_arr(disc_dist2.keys_as_numpy_arr(), np.array([1, 2], dtype=np.object))
+    assert all(compare(disc_dist2.keys_as_list(), [1, 2]))
     assert disc_dist2[1] == 64
     assert disc_dist2[2] == 72
     assert disc_dist2.probability(1) == 64 / 136
@@ -476,7 +493,7 @@ def test_marginal_by_name_discrete_distribution():
     disc_dist2 = disc_dist.marginal(["Age", "Etn"])
     disc_dist3 = disc_dist2.marginal(["Sex"])
     assert disc_dist3.total == disc_dist.total
-    assert_arr(disc_dist3.keys_as_numpy_arr(), np.array([1, 2], dtype=np.object))
+    assert all(compare(disc_dist3.keys_as_list(), [1, 2]))
     assert disc_dist3[1] == 64
     assert disc_dist3[2] == 72
     assert disc_dist3.probability(1) == 64 / 136
@@ -487,7 +504,7 @@ def test_marginal_by_name_discrete_distribution():
     disc_dist3 = disc_dist2.marginal(["Edu"])
     disc_dist4 = disc_dist3.marginal(["Sex"])
     assert disc_dist4.total == disc_dist.total
-    assert_arr(disc_dist4.keys_as_numpy_arr(), np.array(["a", "b"], dtype=np.object))
+    assert all(compare(disc_dist4.keys_as_list(), ["a", "b"]))
     assert disc_dist4["a"] == 36
     assert disc_dist4["b"] == 100
     assert disc_dist4.probability("a") == 36 / 136
@@ -519,12 +536,14 @@ def test_marginals_operator_discrete_distribution():
     assert (disc_dist << ["X2", "X3"]).total == disc_dist.total
     assert (disc_dist << ["X2", "X3", "X4"]).total == disc_dist.total
 
-    assert_arr((disc_dist << ["X1", "X2", "X4"]).keys_as_numpy_arr(), [1, 2])
-    assert_arr((disc_dist << ["X1", "X2", "X3"]).keys_as_numpy_arr(), [33, 44])
-    assert_arr((disc_dist << ["X2", "X3", "X4"]).keys_as_numpy_arr(), ["a", "b"])
-    assert_arr(
-        (disc_dist << ["X2", "X3"]).keys_as_numpy_arr(),
-        np.array([("a", 33), ("a", 44), ("b", 33), ("b", 44)], dtype=np.object),
+    assert all(compare((disc_dist << ["X1", "X2", "X4"]).keys_as_list(), [1, 2]))
+    assert all(compare((disc_dist << ["X1", "X2", "X3"]).keys_as_list(), [33, 44]))
+    assert all(compare((disc_dist << ["X2", "X3", "X4"]).keys_as_list(), ["a", "b"]))
+    assert all(
+        compare(
+            (disc_dist << ["X2", "X3"]).keys_as_list(),
+            [("a", 33), ("a", 44), ("b", 33), ("b", 44)],
+        )
     )
 
     disc_dist = DiscreteDistribution(samples, names=["Age", "Sex", "Education", "City"])
@@ -532,12 +551,16 @@ def test_marginals_operator_discrete_distribution():
     assert (disc_dist << ["Sex", "Education"]).total == disc_dist.total
     assert (disc_dist << ["Sex", "Education", "City"]).total == disc_dist.total
 
-    assert_arr((disc_dist << ["Age", "Sex", "City"]).keys_as_numpy_arr(), [1, 2])
-    assert_arr((disc_dist << ["Age", "Sex", "Education"]).keys_as_numpy_arr(), [33, 44])
-    assert_arr(
-        (disc_dist << ["Sex", "Education", "City"]).keys_as_numpy_arr(), ["a", "b"]
+    assert all(compare((disc_dist << ["Age", "Sex", "City"]).keys_as_list(), [1, 2]))
+    assert all(
+        compare((disc_dist << ["Age", "Sex", "Education"]).keys_as_list(), [33, 44])
     )
-    assert_arr(
-        (disc_dist << ["Sex", "Education"]).keys_as_numpy_arr(),
-        np.array([("a", 33), ("a", 44), ("b", 33), ("b", 44)], dtype=np.object),
+    assert all(
+        compare((disc_dist << ["Sex", "Education", "City"]).keys_as_list(), ["a", "b"])
+    )
+    assert all(
+        compare(
+            (disc_dist << ["Sex", "Education"]).keys_as_list(),
+            [("a", 33), ("a", 44), ("b", 33), ("b", 44)],
+        )
     )

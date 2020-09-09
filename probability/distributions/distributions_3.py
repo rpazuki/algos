@@ -8,10 +8,12 @@ class ConditionalDistribution:
         """Create a conditional distributions.
 
         Args:
-            distributions (dict): a dictionary of (key:DiscreteDistribution)
-                                  where key is the value of the random variables
-                                  that is conditioned on.
-            conditional_names ([type]): [description]
+            distributions (dict):
+                A dictionary of (key:DiscreteDistribution)
+                where key is the value of the random variables
+                that is conditioned on.
+            conditional_names (list):
+                A list of names of conditioned random variables.
         """
         self.conditional_rvs = MultiDiscreteRV(
             list(distributions.keys()), conditional_names
@@ -49,11 +51,13 @@ class ConditionalDistribution:
         """Marginalize the distribution over a set of random variables.
 
         Args:
-            by_names (list): List of variable names to marginalised.
+            by_names (list):
+                List of variable names to marginalised.
 
         Raises:
-            ValueError:  Raises when one of the random variable names is
-                        not defined in rvs.
+            ValueError:
+                Raises when one of the random variable names is
+                not defined in rvs.
 
         Returns:
             DiscreteConditionalDistribution: A new marginalised distribution.

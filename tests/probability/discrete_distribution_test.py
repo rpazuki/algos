@@ -357,3 +357,38 @@ def test_three_levels_discrete_distribution():
     assert dist.prob(X1="B", X2="x", X3=3) == 3 / 15
     assert dist.prob(X1="B", X2="y", X3=3) == 4 / 15
     assert dist.prob(X1="C", X2="z", X3=4) == 5 / 15
+
+
+def test_levels_is_numeric_discrete_distribution():
+    samples = {
+        ("a", "x", 1, 33, 1.5): 1,
+        ("a", "x", 2, 33, 1.5): 2,
+        ("a", "x", 1, 44, 1.5): 3,
+        ("a", "x", 2, 44, 1.5): 4,
+        ("a", "y", 1, 33, 1.5): 5,
+        ("a", "y", 2, 33, 1.5): 6,
+        ("a", "y", 1, 44, 2.5): 7,
+        ("a", "y", 2, 44, 2.5): 8,
+        ("b", "x", 1, 33, 2.5): 9,
+        ("b", "x", 2, 33, 2.5): 10,
+        ("b", "x", 1, 44, 2.5): 11,
+        ("b", "x", 2, 44, 2.5): 12,
+        ("b", "y", 1, 33, 3.5): 13,
+        ("b", "y", 2, 33, 3.5): 14,
+        ("b", "y", 1, 44, 3.5): 15,
+        ("b", "y", 2, 44, 3.5): 16,
+    }
+
+    dist = DiscreteDistribution(samples)
+    # by index
+    assert not dist.rvs[0].is_numeric
+    assert not dist.rvs[1].is_numeric
+    assert dist.rvs[2].is_numeric
+    assert dist.rvs[3].is_numeric
+    assert dist.rvs[4].is_numeric
+    # by name
+    assert not dist.rvs["X1"].is_numeric
+    assert not dist.rvs["X2"].is_numeric
+    assert dist.rvs["X3"].is_numeric
+    assert dist.rvs["X4"].is_numeric
+    assert dist.rvs["X5"].is_numeric

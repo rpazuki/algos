@@ -1,3 +1,4 @@
+from numbers import Number
 from abc import ABC, abstractmethod
 from collections import Counter
 import numpy as np
@@ -60,6 +61,7 @@ class DiscreteRV(RandomVariable):
         """
         super().__init__(set(levels), size=1)
         self.name = str(name)
+        self.is_numeric = all([isinstance(level, Number) for level in self.levels])
 
     def to_key(self, *args, **kwargs):
         total_size = len(args) + len(kwargs.keys())
@@ -264,8 +266,9 @@ class Distribution(ABC):
         occurenc of items in the samples.
 
         Args:
-            samples (iterable): An iterable that contains the observed samples
-                                or a dictionary of (key:frequency).
+            samples (iterable):
+                An iterable that contains the observed samples
+                or a dictionary of (key:frequency).
 
         Raises:
             ValueError: Raises when the provided sample is None.
@@ -276,6 +279,96 @@ class Distribution(ABC):
         self._counter = Counter(samples)
         # Elements count
         self.total = sum(self._counter.values())
+
+    @staticmethod
+    def digitize(samples, start, stop, num=10, endpoint=True, right=False, levels=None):
+        """[summary]
+
+        Args:
+            samples (numeric array):
+                continouse values that needs digitization.
+            start (numeric):
+                The starting value of the sequence.
+            stop (numeric):
+                The end value of the sequence, unless `endpoint` is set to False.
+                In that case, the sequence consists of all but the last of ``num + 1``
+                evenly spaced samples, so that `stop` is excluded.  Note that the step
+                size changes when `endpoint` is False.
+            num (int, optional):
+                Number of samples to generate. Default is 10. Must be non-negative.
+            endpoint (bool, optional):
+                If True, `stop` is the last sample. Otherwise, it is not included.
+                Defaults to True.
+            right (bool):
+                Indicating whether the intervals include the right or the left bin
+                edge. Default behavior is (right==False) indicating that the interval
+                does not include the right edge. The left bin end is open in this
+                case, i.e., bins[i-1] <= x < bins[i] is the default behavior for
+                monotonically increasing bins.
+            levels (list, optional):
+                List of labels for each step. Defaults to None.
+
+        Returns:
+            numpy array:
+                [type]: An array of bins/levels of digitized samples.
+        """
+        bins = np.linspace(start, stop, num, endpoint=endpoint)
+        return Distribution.digitize_bin(samples, bins, right, levels)
+
+    @staticmethod
+    def digitize_bin(samples, bins, right=False, levels=None):
+        """Return the digitized samples by returning the coresponding bins value.
+           When 'levels' is provided, bins values replace by levels.
+
+           =========  =============  ============================
+           `right`    order of bins  returned index `i` satisfies
+           =========  =============  ============================
+           ``False``    increasing   ``bins[i-1] <= x < bins[i]``
+           ``True``     increasing   ``bins[i-1] < x <= bins[i]``
+           ``False``    decreasing   ``bins[i-1] > x >= bins[i]``
+           ``True``     decreasing   ``bins[i-1] >= x > bins[i]``
+           =========  =============  ============================
+
+        Args:
+            samples (numeric array):
+                continouse values that needs digitization.
+            bins (array):
+                Array of bins. It has to be 1-dimensional and monotonic.
+            right (bool):
+                Indicating whether the intervals include the right or
+                the left bin edge. Default behavior is (right==False)
+                indicating that the interval does not include the right
+                edge. The left bin end is open in this case, i.e.,
+                bins[i-1] <= x < bins[i] is the default behavior for
+                monotonically increasing bins.
+            levels (list, optional):
+                List of labels for each step. Defaults to None.
+
+        Raises:
+            ValueError:
+                Raises when the length of levels is not equal to
+                the length of bins minus one.
+
+        Returns:
+            numpy array:
+                An array of bins/levels of digitized samples.
+        """
+        if levels is not None and len(levels) != len(bins) - 1:
+            raise ValueError(
+                f"'levels' length ({len(levels)}) is not "
+                f"equal to bins length-1 ({len(bins)-1})."
+            )
+        indices = np.digitize(samples, bins, right)
+
+        if levels is None:
+            # Extend the bins to include left outliers
+            delta_left = bins[1] - bins[0]
+            bins_extended = np.r_[[bins[0] - delta_left], bins]
+            return bins_extended[indices]
+
+        # Extend the levels to include outliers
+        levels_extended = np.r_[["less"], levels, ["more"]]
+        return levels_extended[indices]
 
     def normalise(self):
         """Normalise the distribution."""
@@ -293,7 +386,8 @@ class Distribution(ABC):
            It return zero if the value is not observed.
 
         Args:
-            key (object): the value of the random variable.
+            key (object):
+                the value of the random variable.
 
         Returns:
             float: probability of the random variable.
@@ -303,9 +397,9 @@ class Distribution(ABC):
 
         return self.__getitem__(key) / self.total
 
-    def freq(self, normalised, *args, **kwargs):
+    def freq(self, *args, **kwargs):
         key = self._get_random_variable_().to_key(*args, **kwargs)
-        return self.frequency(key, normalised)
+        return self.frequency(key, normalised=False)
 
     def frequency(self, key, normalised=False):
         """Gets the frequency of the random variable, when its value is 'key'.
@@ -313,8 +407,10 @@ class Distribution(ABC):
            It return zero if the value is not observed.
 
         Args:
-            key (object): the value of the random variable.
-            normalised (bool, optional): normalize the return. Defaults to False.
+            key (object):
+                the value of the random variable.
+            normalised (bool, optional):
+                normalize the return. Defaults to False.
 
         Returns:
             int or float: frequency or probability of the random variable.
@@ -337,8 +433,8 @@ class Distribution(ABC):
         """A list of frequencies of class occurenc.
 
         Args:
-            normalised (bool, optional): The normalisation flag.
-                                         Defaults to True.
+            normalised (bool, optional):
+                The normalisation flag. Defaults to True.
 
         Returns:
             list: A list of floats or integers, depending of normalisation.
@@ -361,8 +457,8 @@ class Distribution(ABC):
             common to the least. If n is None, then list all element counts.
 
         Args:
-            num (int, optional): The maximum length of the returned list.
-                               Defaults to None.
+            num (int, optional):
+                The maximum length of the returned list. Defaults to None.
 
         Returns:
             list: A list of tuples. The first element of the tuple is a class
@@ -379,7 +475,7 @@ class Distribution(ABC):
         pass
 
     @abstractmethod
-    def to_table(self, normalised=False):
+    def to_table(self, normalised=False, sort=False):
         pass
 
     @abstractmethod
@@ -398,7 +494,8 @@ class Distribution(ABC):
 
 
         Args:
-            key (object): The key that specifies the class name in samples.
+            key (object):
+                The key that specifies the class name in samples.
 
         Returns:
             [float]: The count of occurrence of class 'key'.

@@ -1,3 +1,5 @@
+from itertools import groupby
+from operator import itemgetter
 import numpy as np
 from probability.distributions import Key
 from probability.distributions import DiscreteRV
@@ -17,9 +19,11 @@ class FrequencyTable(Distribution):
         """Construct a FrequencyTable from the number of occurenc in samples.
 
         Args:
-            samples (iterable): An iterable that contains the observed samples
-                                or a dictionary of (key:frequency).
-            name (str): Name of the random variable.
+            samples (iterable):
+                An iterable that contains the observed samples
+                or a dictionary of (key:frequency).
+            name (str):
+                Name of the random variable.
 
         Raises:
             ValueError: Raises when the provided sample is None.
@@ -29,70 +33,17 @@ class FrequencyTable(Distribution):
         self.discrete_rv = DiscreteRV(name, levels=self._counter.keys())
         self.name = name
 
-    @classmethod
-    def from_txt(cls, fname, col, dtype="U", name=None, converter=None, **kwargs):
-        """Calls numpy genfromtxt to load the data.
-
-        Args:
-            fname (file, str, pathlib.Path): file name
-            col (int): column number
-            dtype (dtype, optional): Data type of the resulting array.
-                   If None, the dtype will be determined by the contents
-                   of each column, individually. Defaults to "U" to convert
-                   to unicode text.
-            name (str, optional): name of the
-                                  random variable.
-                                  If it is not provided, it creates as 'X1'.
-                                  Defaults to None.
-            converter (function): calls to convert the columns or to handel
-                                  missing values. Defaults to None.
-        """
-        if "names" in kwargs:
-            raise ValueError(
-                "'names' argument cannot be used for this function. "
-                "It can only load a single column. Use 'name' instead."
-            )
-        if "usecols" in kwargs:
-            raise ValueError(
-                "'usecols' argument cannot be used for this function. "
-                "It can only load a single column. Use 'col' instead."
-            )
-        if "dtypes" in kwargs:
-            raise ValueError(
-                "'dtypes' argument cannot be used for this function. "
-                "It can only load a single column. Use 'dtype' instead."
-            )
-        if "converters" in kwargs:
-            raise ValueError(
-                "'converters' argument cannot be used for this function. "
-                "It can only load a single column. Use 'converter' instead."
-            )
-
-        if col is not None:
-            kwargs["usecols"] = [col]
-        else:
-            raise ValueError("'col' argument is None.")
-
-        if dtype is not None:
-            dtypes = [dtype]
-        else:
-            dtypes = None
-
-        if converter is not None:
-            kwargs["converters"] = {col: converter}
-
-        samples = np.genfromtxt(fname, dtypes, **kwargs)
-        return cls(samples=samples, name=name)
-
     def product(self, right):
         """Multiplies a Distribution to this one.
 
         Args:
-            right ([Distribution]): the other Distribution.
+            right ([Distribution]):
+                The other Distribution.
 
         Raises:
-            ValueError: Raises When the right argument is not a
-                        subclass of Distribution.
+            ValueError:
+                Raises When the right argument is not a
+                subclass of Distribution.
 
         Returns:
             [type]: [description]
@@ -133,7 +84,7 @@ class FrequencyTable(Distribution):
             f"total:{self.total}"
         )
 
-    def to_table(self, normalised=False):
+    def to_table(self, normalised=False, sort=False):
 
         title = "probability" if normalised else "frequency"
         total_title = "**total**"
@@ -160,7 +111,11 @@ class FrequencyTable(Distribution):
         r_padding = padding(max_freq_len)
 
         rows = ""
-        for k, value in sorted(self.items()):
+        if sort:  # sort by values
+            items = reversed(sorted(self.items(), key=lambda item: item[1]))
+        else:  # sort by keys
+            items = sorted(self.items())
+        for k, value in items:
             padding = l_padding(k)
             freq_padding = r_padding(value / norm)
             rows += f"|{padding}{k}|{value/norm}{freq_padding}|\n"
@@ -219,11 +174,13 @@ class DiscreteDistribution(Distribution):
         """Construct a DiscreteDistribution from the number of occurenc in samples.
 
         Args:
-            samples (iterable): An iterable that contains the observed samples
-                                or a dictionary of (key:frequency).
-            names (list, optional): List of names of the random variables.
-                                    If it is not provided, it creates as 'Xn'.
-                                    Defaults to None.
+            samples (iterable):
+                An iterable that contains the observed samples
+                or a dictionary of (key:frequency).
+            names (list, optional):
+                List of names of the random variables.
+                If it is not provided, it creates as 'Xn'.
+                Defaults to None.
         """
         super().__init__(samples)
         self.rvs = MultiDiscreteRV(list(self.keys()), names)
@@ -235,10 +192,12 @@ class DiscreteDistribution(Distribution):
            The resulting keys are tuples.
 
         Args:
-            samples (list or numpy.ndarray): the observed samples.
-            names (list, optional): List of names of the random variables.
-                                    If it is not provided, it creates as 'Xn'.
-                                    Defaults to None.
+            samples (list or numpy.ndarray):
+                the observed samples.
+            names (list, optional):
+                List of names of the random variables.
+                If it is not provided, it creates as 'Xn'.
+                Defaults to None.
 
         Raises:
             ValueError: Raises when the samples argument is not list or
@@ -256,104 +215,18 @@ class DiscreteDistribution(Distribution):
         # the construct
         return cls(samples=[tuple(row) for row in samples], names=names)
 
-    @classmethod
-    def genfromtxt(cls, fname, dtypes, names=None, **kwargs):
-        """Calls numpy genfromtxt to load the data.
-           The resulting keys are tuples.
-
-        Args:
-            fname (file, str, pathlib.Path): file name
-            dtypes (dtype, optional): Data type of the resulting array.
-                   If None, the dtypes will be determined by the contents
-                   of each column, individually.
-            names (list, optional): List of names of the
-                                    random variables.
-                                    If it is not provided, it creates as 'Xn'.
-                                    Defaults to None.
-
-        """
-        samples = np.genfromtxt(fname, dtypes, **kwargs)
-        # Convert rows to element, before calling
-        # the construct
-        return cls(samples=[tuple(row) for row in samples], names=names)
-
-    def __marginal_by_indices(self, by_indices):
-        """Marginalize the distribution over a set of random variables.
-
-        Args:
-            by_indices (int or list of int): The index/indices of random
-                                      variables to sum over.
-
-        Raises:
-            ValueError: Raises when the by argument is None.
-            TypeError: Raises when the distribution has only one random
-                       variable.
-
-        Returns:
-            DiscreteDistribution: A marginalised distribution.
-        """
-        if by_indices is None:
-            raise ValueError("The 'by' argument is None.")
-        if len(self.rvs) == 1:
-            raise TypeError(
-                "This is a single random variable distribution and"
-                " cannot be marginalised."
-            )
-
-        def marginalize_one_var(counter, index):
-            """An inner method to marginalize one random variable.
-
-            Args:
-                counter (dict or Counter or FrequencyTable): the dist. that
-                        must be marginalized
-                index (int): The index of the random variable.
-
-            Returns:
-                dict: the marginalised dictionary with corrected keys.
-            """
-            marginal_dist = {}
-            for key in counter.keys():
-                # Create a new key by removing the given one
-                marginal_key = tuple([k for i, k in enumerate(key) if i != index])
-                # Make sure the tuples with single elements
-                # convert to its element
-                if len(marginal_key) == 1:
-                    marginal_key = marginal_key[0]
-
-                # Marginalize by summing the same keys
-                # Note: turning the key to tuple is safe here,
-                # since always len(key) > 1, otherwise we are
-                # marginalizing all the random variables.
-                if marginal_key in marginal_dist:
-                    marginal_dist[marginal_key] += counter[tuple(key)]
-                else:
-                    marginal_dist[marginal_key] = counter[tuple(key)]
-
-            return marginal_dist
-
-        # Store the indices for marginalization as a numpy array
-        rvs_indices = np.sort(np.r_[by_indices])
-        # Marginalize the first random variable
-        marginal_dist = marginalize_one_var(self, rvs_indices[0])
-        # Marginalize the remaining random variables
-        # Note that the indices are shifted in each iteration
-        for i, position in enumerate(rvs_indices[1:]):
-            marginal_dist = marginalize_one_var(marginal_dist, position - i - 1)
-
-        # Find the complement indices of 'provided' list
-        complement = np.array([i for i in range(len(self.rvs)) if i not in by_indices])
-        return DiscreteDistribution(marginal_dist, names=self.rvs.names[complement])
-
     def marginal(self, by_names):
         """Marginalize the distribution over a set of random variables.
 
         Args:
-            by_names (list): List of variable names to marginalised.
+            by_names (list):
+                List of variable names to marginalised.
 
         Raises:
-            ValueError: Raises when one of the random variable names is
-                        not defined in rvs.
-                        Or raises when requested fo all the random variables.
+            ValueError:
+                Raises when one of the random variable names is
+                not defined in rvs.
+                Or raises when requested fo all the random variables.
 
         Returns:
             DiscreteDistribution: A new marginalised distribution.
@@ -365,64 +238,50 @@ class DiscreteDistribution(Distribution):
         if len(by_names) == self.rvs.size:
             raise ValueError("Cannot marginalize on all the random variables.")
 
-        by_indices = [i for i, name in enumerate(self.rvs.names) if name in by_names]
-        return self.__marginal_by_indices(by_indices)
+        indices = [i for i, name in enumerate(self.rvs.names) if name in by_names]
+        # Find the indices of compliment random variables (the other ones that
+        # are not part of conditioning)
+        comp_indices = np.array([i for i in range(len(self.rvs)) if i not in indices])
+        # Convert the self._counter's key:value to 2D numpy array
+        # the array rows are (random variables, count)
+        arr = np.array([tuple(k) + (v,) for k, v in self.items()], dtype=np.object)
 
-    def __reduce_by_indices(self, by_indices):
-        """Reduce the distribution by one or more factors.
+        def to_tuple(row):
+            if row.size == 1:
+                return row[0]
+            return tuple(row)
 
-        Args:
-            by_indices (dict): A dictionary that its 'key' is the index
-                               of the random variable and its 'value'
-                               is the factor that must be reduced by.
-
-        Returns:
-            [DiscreteDistribution]: A reduce distribution.
-        """
-
-        def single_slice(counter, index, value):
-            slice_dist = {}
-            for key in counter.keys():
-                key_as_tuple = tuple(key)
-                if key_as_tuple[index] != value:
-                    continue
-                # Create a new key by removing the given one
-                slice_key = tuple([k for i, k in enumerate(key) if i != index])
-                # Make sure the tuples with single elements
-                # convert to its element
-                if len(slice_key) == 1:
-                    slice_key = slice_key[0]
-                # keep the value
-                if slice_key in slice_dist:
-                    slice_dist[slice_key] += counter[tuple(key)]
-                else:
-                    slice_dist[slice_key] = counter[tuple(key)]
-            return slice_dist
-
-        for i, index in enumerate(by_indices):
-            value = by_indices[index]
-            if i == 0:
-                # Slice the first variable
-                slice_dist = single_slice(self, index, value)
-            else:
-                # Marginalize the remaining random variables
-                # Note that the indices are shifted in each iteration
-                slice_dist = single_slice(slice_dist, index - i, value)
-
-        # Find the complement indices of 'by_indices' list
-        complement = np.array([i for i in range(len(self.rvs)) if i not in by_indices])
-        return DiscreteDistribution(slice_dist, self.rvs.names[complement])
+        # divide the 2d array's rows to a tuple of
+        # compliment variables (row[comp_indices])
+        # and count row[-1]
+        arr_gen = ((to_tuple(row[comp_indices]), row[-1]) for row in arr)
+        # Before calling the groupby, we have to sort the generator
+        # by the tuple of compliment variables (index zero in itemgetter)
+        sorted_arr = sorted(arr_gen, key=itemgetter(0))
+        # since the values in each 'group' are
+        # (compliment variables, count)
+        # here we group by 'compliment variables' and sum
+        # the count. Then the dictionary of
+        # compliment variables:sum_of_counts
+        # is an acceptable argument for DiscreteDistribution
+        grouped_arr = {
+            k: sum([item[1] for item in g])
+            for k, g in groupby(sorted_arr, key=itemgetter(0))
+        }
+        return DiscreteDistribution(grouped_arr, names=self.rvs.names[comp_indices])
 
     def reduce(self, by_names):
         """Reduce the distribution by one or more factors.
 
         Args:
-            by_names (dict): A dictionary that its 'key' is the name
-                             of the random variable and its 'value'
-                             is the factor that must be reduced by.
+            by_names (dict):
+                A dictionary that its 'key' is the name
+                of the random variable and its 'value'
+                is the factor that must be reduced by.
 
         Raises:
-            ValueError: If the provided RV names do not exist in the distribution.
+            ValueError:
+                If the provided RV names do not exist in the distribution.
 
         Returns:
             [DiscreteDistribution]: A reduce distribution.
@@ -431,57 +290,67 @@ class DiscreteDistribution(Distribution):
             if name not in self.rvs:
                 raise ValueError(f"Random variable {name} is" f" not defined.")
 
-        by_indices = {self.rvs.index_of(rv): value for rv, value in by_names.items()}
-        return self.__reduce_by_indices(by_indices)
-
-    def __condition_on_by_indices(self, on_names_indices):
-        """Creates the conditional distribution based on
-           the provided indices of random variables.
-
-        Args:
-            on_names_indices (list): List of indices of provided random
-                                     variables.
-
-        Raises:
-            ValueError: Raises when the provided_indices in None.
-            TypeError: Raises when the distribution has only one
-                       random variable.
-
-        Returns:
-            DiscreteConditionalDistribution
-        """
-
-        if on_names_indices is None:
-            raise ValueError("The 'provided_indices' argument is None.")
-        if len(self.rvs) == 1:
-            raise TypeError("This is a single random variable distribution.")
-
-        # Store the indices for marginalization as a numpy array
-        rvs_indices = np.sort(np.r_[on_names_indices])
-        # Find the complement indices of 'provided_indices' list
-        complement = np.array([i for i in range(len(self.rvs)) if i not in rvs_indices])
-        # p(x, y, z | a, b) = p(x, y, z , a, b)/ p(a, b)
+        indices = [self.rvs.index_of(rv) for rv, _ in by_names.items()]
+        values = np.array([value for _, value in by_names.items()], dtype=np.object)
         #
-        # marginal_dist := p(a, b)
-        marginal_dist = self.__marginal_by_indices(complement)
-        #
-        distributions = {}
-        for key in marginal_dist.keys():
-            key_as_tuple = Key(key)
-            by_index = {index: key_as_tuple[i] for i, index in enumerate(rvs_indices)}
-            distributions[key] = self.__reduce_by_indices(by_index)
-        return ConditionalDistribution(distributions, self.rvs.names[rvs_indices])
+        # Convert the self._counter's key:value to 2D numpy array
+        # the array rows are (random variables, count)
+        arr_counter = np.array(
+            [tuple(k) + (v,) for k, v in self.items()], dtype=np.object
+        )
+        # Find the indices of compliment random variables (the other ones that
+        # are not part of reduce)
+        compliment_indices = [i for i in range(len(self.rvs)) if i not in indices]
+        # filter the 2d array rows by provided values of the reduce
+        # conditioned_arr is a boolean one, and filtering happens
+        # in the second line
+        conditioned_arr = np.all(arr_counter[:, indices] == values, axis=1)
+        slice_arr = arr_counter[conditioned_arr, :]
+        # filter the 2d array columns (the compliment random variables)
+        # plus the count column (which is the last column)
+        slice_arr = slice_arr[:, compliment_indices + [-1]]
+
+        def to_tuple(row):
+            if row.size == 2:
+                return row[0]
+            return tuple(row[:-1])
+
+        # divide the 2d array's rows to a tuple of random variables
+        # and count
+        # So, we make a generator that divide the rows to the tuple of
+        # random variables (tuple(row[:-1]) and count (row[-1])
+        arr_gen = ((to_tuple(row), row[-1]) for row in slice_arr)
+        # Before calling the groupby, we have to sort the generator
+        # by the tuple of random variables (index zero in itemgetter)
+        sorted_slice_arr = sorted(arr_gen, key=itemgetter(0))
+        # group by the filtered random variables (compliment
+        # columns) and sum the counts per key
+        # Note that the 'itemgetter' read the first index which
+        # is the tuple of compliment columns
+        slice_dist = {
+            k: sum([item[1] for item in g])
+            for k, g in groupby(sorted_slice_arr, key=itemgetter(0))
+        }
+        # Since we have a dictionary of (compliment columns: counts),
+        # it is easy to create a DiscreteDistribution.
+        # Obviously, the names of these random variables must
+        # be the same as compliment columns, which we selected
+        # from self.rvs.names
+        return DiscreteDistribution(slice_dist, self.rvs.names[compliment_indices])
 
     def condition_on(self, on_names):
         """Creates the conditional distribution based on
            the provided names of random variables.
 
         Args:
-            on_names (list): List of names of provided random
-                             variables.
+            on_names (list):
+                List of names of provided random
+                variables.
 
         Raises:
-            ValueError: If the provided RV names do not exist in the distribution.
+            ValueError:
+                If the provided RV names do not exist
+                in the distribution.
 
         Returns:
             DiscreteConditionalDistribution
@@ -493,8 +362,59 @@ class DiscreteDistribution(Distribution):
         if len(on_names) == self.rvs.size:
             raise ValueError("Cannot condition on all the random variables.")
 
-        by_indices = [i for i, name in enumerate(self.rvs.names) if name in on_names]
-        return self.__condition_on_by_indices(by_indices)
+        if len(self.rvs) == 1:
+            raise TypeError("This is a single random variable distribution.")
+
+        indices = [i for i, name in enumerate(self.rvs.names) if name in on_names]
+        # Find the indices of compliment random variables (the other ones that
+        # are not part of conditioning)
+        comp_indices = np.array([i for i in range(len(self.rvs)) if i not in indices])
+        # Convert the self._counter's key:value to 2D numpy array
+        # the array rows are (random variables, count)
+        arr = np.array([tuple(k) + (v,) for k, v in self.items()], dtype=np.object)
+        #
+
+        def to_tuple(row):
+            if row.size == 1:
+                return row[0]
+            return tuple(row)
+
+        # divide the 2d array's rows to a tuple of random variables,
+        # (row[indices]), compliment variables (row[comp_indices])
+        # and count row[-1]
+        arr_gen = (
+            (to_tuple(row[indices]), to_tuple(row[comp_indices]), row[-1])
+            for row in arr
+        )
+        # Before calling the groupby, we have to sort the generator
+        # by the tuple of random variables (index zero in itemgetter)
+        # And since later we will call the group by on group,
+        # for each key we do the inner sort too (index one in itemgetter)
+        sorted_arr = sorted(arr_gen, key=itemgetter(0, 1))
+        # This method convert a group to a DiscreteDistribution
+
+        def make_dist(group):
+            # since the values in 'group' argument are
+            # (random variables, compliment variables, count)
+            # here we group by 'compliment variables' and sum
+            # the count.
+            # Then the dictionary of compliment variables:sum_of_counts
+            # is an acceptable argument for DiscreteDistribution
+            grouped_arr_2 = {
+                k: sum([item[2] for item in g2])
+                for k, g2 in groupby(group, key=itemgetter(1))
+            }
+            return DiscreteDistribution(grouped_arr_2, self.rvs.names[comp_indices])
+
+        # For each group (belongs a unique values), we create
+        # a DiscreteDistribution in a dictionary comprehension
+        grouped_arr = {
+            k: make_dist(g) for k, g in groupby(sorted_arr, key=itemgetter(0))
+        }
+        # The above dictionary is the format that ConditionalDistribution
+        # accepts as the first argument
+        # The conditional names are self.rvs.names[indices]
+        return ConditionalDistribution(grouped_arr, self.rvs.names[indices])
 
     def product(self, right):
         """Multiplies a DiscreteDistribution to this one.
@@ -503,13 +423,16 @@ class DiscreteDistribution(Distribution):
             class.
 
         Args:
-            right (DiscreteDistribution): the other one.
+            right (DiscreteDistribution):
+               The other distribution.
 
         Raises:
-            ValueError: Raises when the 'right' argument is  Note
-                        DiscreteDistribution class.
-            ValueError: Raises when the 'right' is the same as the
-                        self class.
+            ValueError:
+                Raises when the 'right' argument is not
+                DiscreteDistribution class.
+            ValueError:
+                Raises when the 'right' is the same as the
+                self class.
 
 
         Returns:
@@ -615,7 +538,7 @@ class DiscreteDistribution(Distribution):
             f"normalised:{np.abs(self.total -1) <= 1e-16}\n"
         )
 
-    def to_table(self, normalised=False):
+    def to_table(self, normalised=False, sort=False):
 
         title = "probability" if normalised else "frequency"
         total_title = "**total**"
@@ -645,6 +568,11 @@ class DiscreteDistribution(Distribution):
 
         r_padding = padding(max_freq_len)
 
+        if sort:  # sort by values
+            items = reversed(sorted(self.items(), key=lambda item: item[1]))
+        else:  # sort by keys
+            items = sorted(self.items())
+
         rows = ""
         if self.rvs.size == 1:
             l_padding = padding(max_levels_len[0])
@@ -654,7 +582,7 @@ class DiscreteDistribution(Distribution):
             horizontal_line = "".join(
                 ["|"] + ["-"] * max_levels_len[0] + ["|"] + ["-"] * max_freq_len + ["|"]
             )
-            for k, value in sorted(self.items()):
+            for k, value in items:
                 padding = l_padding(k)
                 freq_padding = r_padding(value / norm)
                 rows += f"|{freq_padding}{k}|{value/norm}{freq_padding}|\n"
@@ -667,14 +595,14 @@ class DiscreteDistribution(Distribution):
             header += "|title"
             horizontal_line += "|" + "".join(["-"] * max_freq_len)
 
-            for k, value in sorted(self.items()):
+            for k, value in items:
                 key_str = ""
                 for i, k_part in enumerate(k):
                     key_str += f"|{padding(max_levels_len[i])(k_part)}{k_part}"
                 freq_padding = r_padding(value / norm)
                 rows += f"{key_str}|{value/norm}{freq_padding}|\n"
 
-        return f"{header}\n{horizontal_line}|\n{rows}"
+        return f"{header}\n{horizontal_line}\n{rows}"
 
     def __lshift__(self, by_indices):
         """marginalization operator"""

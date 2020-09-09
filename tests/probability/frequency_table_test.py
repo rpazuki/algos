@@ -1,6 +1,6 @@
 import pytest
 import numpy as np
-from probability.distributions import FrequencyTable
+from probability.distributions import FrequencyTable, Distribution
 from tests.helpers import compare
 
 
@@ -348,3 +348,121 @@ def test_statistical_independence_frequency_table():
 
     for k1 in joint_dist:
         assert joint_dist.probability(k1) == joint_dist2.probability(k1)
+
+
+def test_continouse_frequency_table():
+    # Note that there are three cases at the top
+    # of the 'samples' that are out of the range
+    # of the bins
+    samples = [
+        -0.8,
+        -0.1,
+        1.1,
+        0.08706673,
+        0.48376282,
+        0.52239421,
+        0.14593262,
+        0.07347176,
+        0.34733567,
+        0.280569,
+        0.28010016,
+        0.00394102,
+        0.68676722,
+        0.91315035,
+        0.79438912,
+        0.73380882,
+        0.75251795,
+        0.87636918,
+        0.42696308,
+        0.42906385,
+        0.2679933,
+        0.49831989,
+        0.76442673,
+        0.70112504,
+        0.01672044,
+        0.88090148,
+        0.69801565,
+        0.27066378,
+        0.93762043,
+        0.45260394,
+        0.13722068,
+        0.35406184,
+        0.27922478,
+    ]
+    bins = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]
+    digitized = Distribution.digitize_bin(samples, bins)
+    dist = FrequencyTable(digitized)
+    assert dist.total == 33
+    assert dist[0.0] == 4
+    assert dist.prob(X1=0.0) == 4 / 33
+    assert dist[0.8] == 2
+    assert dist.prob(X1=0.8) == 2 / 33
+    assert dist[0.9] == 2
+    assert dist.prob(X1=0.9) == 2 / 33
+    # These three levels are out of the bins range
+    # belong to two elements on top
+    assert dist[-0.1] == 2
+    assert dist.prob(X1=-0.1) == 2 / 33
+    assert dist[1.0] == 1
+    assert dist.prob(X1=1.0) == 1 / 33
+
+    digitized = Distribution.digitize(samples, start=0, stop=1, num=11)
+    dist = FrequencyTable(digitized)
+    assert dist.total == 33
+    assert dist[0.0] == 4
+    assert dist.prob(X1=0.0) == 4 / 33
+    assert dist[0.8] == 2
+    assert dist.prob(X1=0.8) == 2 / 33
+    assert dist[0.9] == 2
+    assert dist.prob(X1=0.9) == 2 / 33
+    # These three levels are out of the bins range
+    # belong to two elements on top
+    assert dist[-0.1] == 2
+    assert dist.prob(X1=-0.1) == 2 / 33
+    assert dist[1.0] == 1
+    assert dist.prob(X1=1.0) == 1 / 33
+
+
+def test_continouse_level_frequency_table():
+    samples = [15.23, 9.7, 13.78, -1, 999, 12.8, 2.5, 6.35, 14.3, 16.3]
+    bins = [0, 10, 20]
+    levels = ["low", "high"]
+    digitized = Distribution.digitize_bin(samples, bins, levels=levels)
+    dist = FrequencyTable(digitized)
+    assert dist["less"] == 1
+    assert dist.prob(X1="less") == 0.1
+    assert dist["low"] == 3
+    assert dist.prob(X1="low") == 0.3
+    assert dist["high"] == 5
+    assert dist.prob(X1="high") == 0.5
+    assert dist["more"] == 1
+    assert dist.prob(X1="more") == 0.1
+
+    digitized = Distribution.digitize(samples, start=0, stop=20, num=3, levels=levels)
+    dist = FrequencyTable(digitized)
+    assert dist["less"] == 1
+    assert dist.prob(X1="less") == 0.1
+    assert dist["low"] == 3
+    assert dist.prob(X1="low") == 0.3
+    assert dist["high"] == 5
+    assert dist.prob(X1="high") == 0.5
+    assert dist["more"] == 1
+    assert dist.prob(X1="more") == 0.1
+
+
+def test_levels_is_numeric_frequency_table():
+    samples = [1, 2, 3, 4, 5, 6]
+    dist = FrequencyTable(samples)
+    assert dist.discrete_rv.is_numeric
+
+    samples = [1.1, 2.6, 3.6, 4.9, 5.6, 6.7]
+    dist = FrequencyTable(samples)
+    assert dist.discrete_rv.is_numeric
+
+    samples = ["A", "B", "C", "D"]
+    dist = FrequencyTable(samples)
+    assert not dist.discrete_rv.is_numeric
+
+    samples = [1, 2, 3, "A", "B", "C", "D"]
+    dist = FrequencyTable(samples)
+    assert not dist.discrete_rv.is_numeric

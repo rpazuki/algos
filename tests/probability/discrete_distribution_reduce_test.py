@@ -1,5 +1,5 @@
-from numpy.testing import assert_array_equal as assert_arr
 from probability.distributions import DiscreteDistribution
+from tests.helpers import compare
 
 
 def test_reduce_by_name_discrete_distribution():
@@ -25,7 +25,7 @@ def test_reduce_by_name_discrete_distribution():
     indices = {"X2": "y"}
     reduced_dist = disc_dist.reduce(indices)
     assert reduced_dist.rvs.size == 3
-    assert_arr(reduced_dist.rvs.names, ["X1", "X3", "X4"])
+    assert all(compare(reduced_dist.rvs.names, ["X1", "X3", "X4"]))
     assert reduced_dist.rvs[0].levels == {"a", "b"}
     assert reduced_dist.rvs[1].levels == {1, 2}
     assert reduced_dist.rvs[2].levels == {33, 44}
@@ -39,7 +39,7 @@ def test_reduce_by_name_discrete_distribution():
     indices = {"X2": "y", "X3": 1}
     reduced_dist = disc_dist.reduce(indices)
     assert reduced_dist.rvs.size == 2
-    assert_arr(reduced_dist.rvs.names, ["X1", "X4"])
+    assert all(compare(reduced_dist.rvs.names, ["X1", "X4"]))
     assert reduced_dist.rvs[0].levels == {"a", "b"}
     assert reduced_dist.rvs[1].levels == {33, 44}
     assert reduced_dist[("a", 33)] == 5
@@ -52,7 +52,7 @@ def test_reduce_by_name_discrete_distribution():
     indices = {"X1": "b", "X3": 1, "X4": 44}
     reduced_dist = disc_dist.reduce(indices)
     assert reduced_dist.rvs.size == 1
-    assert_arr(reduced_dist.rvs.names, ["X2"])
+    assert all(compare(reduced_dist.rvs.names, ["X2"]))
     assert reduced_dist.rvs[0].levels == {"x", "y"}
     assert reduced_dist["x"] == 11
     assert reduced_dist["y"] == 15
@@ -66,7 +66,7 @@ def test_reduce_by_name_discrete_distribution():
     indices = {"Z": "y"}
     reduced_dist = disc_dist.reduce(indices)
     assert reduced_dist.rvs.size == 3
-    assert_arr(reduced_dist.rvs.names, ["Y", "W", "X"])
+    assert all(compare(reduced_dist.rvs.names, ["Y", "W", "X"]))
     assert reduced_dist.rvs[0].levels == {"a", "b"}
     assert reduced_dist.rvs[1].levels == {1, 2}
     assert reduced_dist.rvs[2].levels == {33, 44}
@@ -80,7 +80,7 @@ def test_reduce_by_name_discrete_distribution():
     indices = {"Z": "y", "W": 1}
     reduced_dist = disc_dist.reduce(indices)
     assert reduced_dist.rvs.size == 2
-    assert_arr(reduced_dist.rvs.names, ["Y", "X"])
+    assert all(compare(reduced_dist.rvs.names, ["Y", "X"]))
     assert reduced_dist.rvs[0].levels == {"a", "b"}
     assert reduced_dist.rvs[1].levels == {33, 44}
     assert reduced_dist[("a", 33)] == 5
@@ -93,7 +93,7 @@ def test_reduce_by_name_discrete_distribution():
     indices = {"Y": "b", "W": 1, "X": 44}
     reduced_dist = disc_dist.reduce(indices)
     assert reduced_dist.rvs.size == 1
-    assert_arr(reduced_dist.rvs.names, ["Z"])
+    assert all(compare(reduced_dist.rvs.names, ["Z"]))
     assert reduced_dist.rvs[0].levels == {"x", "y"}
     assert reduced_dist["x"] == 11
     assert reduced_dist["y"] == 15

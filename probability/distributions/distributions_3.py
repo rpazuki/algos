@@ -15,9 +15,8 @@ class ConditionalDistribution:
             conditional_names (list):
                 A list of names of conditioned random variables.
         """
-        self.conditional_rvs = MultiDiscreteRV(
-            list(distributions.keys()), conditional_names
-        )
+        first_row = next(iter(distributions.keys()))
+        self.conditional_rvs = MultiDiscreteRV(first_row, conditional_names)
         # For each conditional levels, we store its equivalent dist.
         self.distributions = distributions
         #

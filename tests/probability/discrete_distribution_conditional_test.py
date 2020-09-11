@@ -23,9 +23,8 @@ def test_conditional_discrete_distribution():
         ("b", "y", 2, 44): 16,
     }
     disc_dist = DiscreteDistribution(samples)
-    con_disc_dist = disc_dist.condition_on(["X2"])
+    con_disc_dist = disc_dist.condition_on("X2")
     assert all(compare(con_disc_dist.conditional_rvs.names, ["X2"]))
-    assert all(compare(con_disc_dist.conditional_rvs[0].levels, {"x", "y"}))
     assert all(compare(con_disc_dist.distributions["x"].names, ["X1", "X3", "X4"]))
     assert all(compare(con_disc_dist.distributions["y"].names, ["X1", "X3", "X4"]))
 
@@ -73,10 +72,8 @@ def test_conditional_operator_discrete_distribution():
         ("b", "y", 2, 44): 16,
     }
     disc_dist = DiscreteDistribution(samples)
-    con_disc_dist = disc_dist | ["X2"]
+    con_disc_dist = disc_dist | "X2"
     assert all(compare(con_disc_dist.conditional_rvs.names, ["X2"]))
-    # assert_arr(con_disc_dist.conditional.classes(), ["x", "y"])
-    assert all(compare(con_disc_dist.conditional_rvs[0].levels, {"x", "y"}))
     assert all(compare(con_disc_dist.distributions["x"].names, ["X1", "X3", "X4"]))
     assert all(compare(con_disc_dist.distributions["y"].names, ["X1", "X3", "X4"]))
 
@@ -86,18 +83,11 @@ def test_conditional_operator_discrete_distribution():
     assert con_disc_dist.probability(("a", 1, 33), "x") == 1 / 52
     assert con_disc_dist.probability(("a", 1, 33), "y") == 5 / 84
 
-    con_disc_dist = disc_dist | ["X2", "X3"]
+    con_disc_dist = disc_dist | ("X2", "X3")
     assert all(compare(con_disc_dist.conditional_rvs.names, ["X2", "X3"]))
-    assert all(compare(con_disc_dist.conditional_rvs.levels, [{"x", "y"}, {1, 2}]))
     assert all(compare(con_disc_dist.distributions[("x", 1)].names, ["X1", "X4"]))
     assert all(compare(con_disc_dist.distributions[("x", 2)].names, ["X1", "X4"]))
     assert all(compare(con_disc_dist.distributions[("y", 1)].names, ["X1", "X4"]))
     assert all(compare(con_disc_dist.distributions[("y", 2)].names, ["X1", "X4"]))
-    assert all(
-        compare(
-            con_disc_dist.distributions[("y", 2)].rvs.levels, [{"a", "b"}, {33, 44}]
-        )
-    )
-
     assert con_disc_dist.frequency(("a", 33), ("x", 1)) == 1
     assert con_disc_dist.probability(("a", 33), ("x", 1)) == 1 / 24

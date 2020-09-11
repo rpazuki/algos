@@ -1,4 +1,5 @@
 import pytest
+from pytest import approx
 import numpy as np
 from probability.distributions import FrequencyTable, Distribution
 from tests.helpers import compare
@@ -19,6 +20,7 @@ def test_single_element_frequency_table():
     samples = ["A", "A", "A", "A"]
     freq_table = FrequencyTable(samples)
     assert all(compare(freq_table.keys_as_list(), ["A"]))
+    assert all(compare(freq_table.levels(), ["A"]))
     assert freq_table.total == 4
     assert freq_table["A"] == 4
     assert freq_table["B"] == 0
@@ -34,6 +36,7 @@ def test_single_element_tuple_frequency_table():
     samples = [(1,), (1,), (1,), (1,)]
     freq_table = FrequencyTable(samples)
     assert all(compare(freq_table.keys_as_list(), [(1,)]))
+    assert all(compare(freq_table.levels(), [(1,)]))
     assert freq_table.total == 4
     assert freq_table[(1,)] == 4
     assert freq_table[(2,)] == 0
@@ -46,6 +49,7 @@ def test_single_element_tuple_frequency_table():
     samples = [("A",), ("A",), ("A",), ("A",)]
     freq_table = FrequencyTable(samples)
     assert all(compare(freq_table.keys_as_list(), [("A",)]))
+    assert all(compare(freq_table.levels(), [("A",)]))
     assert freq_table.total == 4
     assert freq_table[("A",)] == 4
     assert freq_table[("B",)] == 0
@@ -61,6 +65,7 @@ def test_double_elements_tuple_frequency_table():
     samples = [(1, 2), (1, 2), (1, 2), (1, 3)]
     freq_table = FrequencyTable(samples)
     assert all(compare(freq_table.keys_as_list(), [(1, 2), (1, 3)]))
+    assert all(compare(freq_table.levels(), [(1, 2), (1, 3)]))
     assert freq_table.total == 4
     assert freq_table[(1, 2)] == 3
     assert freq_table[(1, 3)] == 1
@@ -76,6 +81,7 @@ def test_double_elements_tuple_frequency_table():
     samples = [("A", "B"), ("A", "B"), ("A", "C"), ("A", "C")]
     freq_table = FrequencyTable(samples)
     assert all(compare(freq_table.keys_as_list(), [("A", "B"), ("A", "C")]))
+    assert all(compare(freq_table.levels(), [("A", "B"), ("A", "C")]))
     assert freq_table.total == 4
     assert freq_table[("A", "B")] == 2
     assert freq_table[("A", "C")] == 2
@@ -95,6 +101,7 @@ def test_two_elements_frequency_table():
     samples = ["A", "A", "A", "A", "A", "A", "B", "B"]
     freq_table = FrequencyTable(samples)
     assert all(compare(freq_table.keys_as_list(), ["A", "B"]))
+    assert all(compare(freq_table.levels(), ["A", "B"]))
     assert freq_table.total == 8
     assert freq_table["A"] == 6
     assert freq_table["B"] == 2
@@ -113,6 +120,7 @@ def test_three_elements_frequency_table():
     samples = ["A", "A", "A", "A", "A", "A", "B", "B", "B", "B", "C", "C"]
     freq_table = FrequencyTable(samples)
     assert all(compare(freq_table.keys_as_list(), ["A", "B", "C"]))
+    assert all(compare(freq_table.levels(), ["A", "B", "C"]))
     assert freq_table.total == 12
     assert freq_table["A"] == 6
     assert freq_table["B"] == 4
@@ -137,6 +145,7 @@ def test_most_common_frequency_table():
     np.random.shuffle(samples)
 
     freq_table = FrequencyTable(samples)
+    assert all(compare(freq_table.levels(), ["A", "B", "C", "D", "E"]))
     assert all(compare(freq_table.most_common(1), [("B", 48)]))
     assert all(compare(freq_table.most_common(2), [("B", 48), ("A", 24)]))
     assert all(compare(freq_table.most_common(3), [("B", 48), ("A", 24), ("E", 17)]))
@@ -158,6 +167,7 @@ def test_most_common_frequency_table():
 
     # Empty list
     freq_table = FrequencyTable([])
+    assert all(compare(freq_table.levels(), []))
     assert all(compare(freq_table.most_common(), []))
     assert all(compare(freq_table.most_common(1), []))
     assert all(compare(freq_table.most_common(2), []))
@@ -171,12 +181,14 @@ def test_from_dict_frequency_table():
     # Empty dict
     freq_table = FrequencyTable({})
     assert all(compare(freq_table.keys_as_list(), []))
+    assert all(compare(freq_table.levels(), []))
     assert freq_table["A"] == 0
     assert freq_table[3] == 0
 
     # Single class
     freq_table = FrequencyTable({"A": 3})
     assert all(compare(freq_table.keys_as_list(), ["A"]))
+    assert all(compare(freq_table.levels(), ["A"]))
     assert freq_table.total == 3
     assert freq_table["A"] == 3
     assert freq_table["B"] == 0
@@ -187,6 +199,7 @@ def test_from_dict_frequency_table():
     # Single class with zero sample
     freq_table = FrequencyTable({"A": 0})
     assert all(compare(freq_table.keys_as_list(), ["A"]))
+    assert all(compare(freq_table.levels(), ["A"]))
     assert freq_table.total == 0
     assert freq_table["A"] == 0
     assert freq_table["B"] == 0
@@ -197,6 +210,7 @@ def test_from_dict_frequency_table():
     # Two.classes()
     freq_table = FrequencyTable({"A": 3, "B": 4})
     assert all(compare(freq_table.keys_as_list(), ["A", "B"]))
+    assert all(compare(freq_table.levels(), ["A", "B"]))
     assert freq_table.total == 7
     assert freq_table["A"] == 3
     assert freq_table["B"] == 4
@@ -207,6 +221,7 @@ def test_from_dict_frequency_table():
     # Two.classes() with zero sample
     freq_table = FrequencyTable({"A": 0, "B": 3})
     assert all(compare(freq_table.keys_as_list(), ["A", "B"]))
+    assert all(compare(freq_table.levels(), ["A", "B"]))
     assert freq_table.total == 3
     assert freq_table["A"] == 0
     assert freq_table["B"] == 3
@@ -216,6 +231,7 @@ def test_from_dict_frequency_table():
 
     freq_table = FrequencyTable({"A": 0, "B": 0})
     assert all(compare(freq_table.keys_as_list(), ["A", "B"]))
+    assert all(compare(freq_table.levels(), ["A", "B"]))
     assert freq_table.total == 0
     assert freq_table["A"] == 0
     assert freq_table["B"] == 0
@@ -226,6 +242,7 @@ def test_from_dict_frequency_table():
     # Three.classes()
     freq_table = FrequencyTable({"A": 3, "B": 4, "C": 4})
     assert all(compare(freq_table.keys_as_list(), ["A", "B", "C"]))
+    assert all(compare(freq_table.levels(), ["A", "B", "C"]))
     assert freq_table.total == 11
     assert freq_table["A"] == 3
     assert freq_table["B"] == 4
@@ -239,6 +256,7 @@ def test_from_dict_frequency_table():
     # Three.classes() with zero sample
     freq_table = FrequencyTable({"A": 0, "B": 3, "C": 3})
     assert all(compare(freq_table.keys_as_list(), ["A", "B", "C"]))
+    assert all(compare(freq_table.levels(), ["A", "B", "C"]))
     assert freq_table.total == 6
     assert freq_table["A"] == 0
     assert freq_table["B"] == 3
@@ -249,6 +267,7 @@ def test_from_dict_frequency_table():
 
     freq_table = FrequencyTable({"A": 0, "B": 0, "C": 0})
     assert all(compare(freq_table.keys_as_list(), ["A", "B", "C"]))
+    assert all(compare(freq_table.levels(), ["A", "B", "C"]))
     assert freq_table.total == 0
     assert freq_table["A"] == 0
     assert freq_table["B"] == 0
@@ -274,6 +293,7 @@ def test_add_frequency_table():
     freq_table3 = freq_table1 + freq_table2
 
     assert all(compare(freq_table3.keys_as_list(), ["A", "B", "C", "D"]))
+    assert all(compare(freq_table3.levels(), ["A", "B", "C", "D"]))
     assert freq_table3.total == (freq_table1.total + freq_table2.total)
     assert freq_table3["A"] == 7
     assert freq_table3["B"] == 4
@@ -300,7 +320,9 @@ def test_product_frequency_table():
     # different tables, same name
     freq_table3 = freq_table1 * freq_table2
     assert all(compare(freq_table3.names, ["X11", "X12"]))
-    assert all(compare(freq_table3.rvs.levels, [{"A", "B", "C"}, {"A", "D", "C"}]))
+    both_levels = zip(freq_table3.levels(), [["A", "B", "C"], ["A", "C", "D"]])
+    for levels_1, levels_2 in both_levels:
+        assert all(compare(levels_1, levels_2))
 
     freq_table1 = FrequencyTable({"A": 3, "B": 4, "C": 7})
     freq_table2 = FrequencyTable({"A": 4, "C": 4, "D": 10})
@@ -329,6 +351,61 @@ def test_product_frequency_table():
     ) * freq_table2.probability("C")
 
 
+def test_product_multi_proc_frequency_table():
+    sample_1 = {
+        "A": 1,
+        "B": 2,
+        "C": 3,
+        "D": 4,
+        "E": 5,
+        "F": 6,
+        "G": 7,
+        "H": 8,
+        "I": 9,
+        "J": 10,
+        "K": 11,
+        "L": 12,
+        "M": 13,
+        "N": 14,
+        "O": 15,
+        "P": 16,
+        "Q": 17,
+        "R": 18,
+        "S": 19,
+        "T": 20,
+        "U": 21,
+        "V": 22,
+        "W": 23,
+        "X": 24,
+        "Y": 25,
+        "Z": 26,
+    }
+    freq_table1 = FrequencyTable(sample_1, "X1")
+    freq_table2 = FrequencyTable(sample_1, "X2")
+
+    prod_1 = freq_table1 * freq_table2
+
+    prod_2 = freq_table1.product_multi_proc(freq_table2, 2)
+    for key, value in prod_1.items():
+        assert prod_2[key] == value
+
+    prod_2 = freq_table1.product_multi_proc(freq_table2, 3)
+    for key, value in prod_1.items():
+        assert prod_2[key] == value
+
+    prod_2 = freq_table1.product_multi_proc(freq_table2, 4)
+    for key, value in prod_1.items():
+        assert prod_2[key] == value
+
+    prod_2 = freq_table1.product_multi_proc(freq_table2, 5)
+    for key, value in prod_1.items():
+        assert prod_2[key] == value
+
+    prod_2 = freq_table1.product_multi_proc(freq_table2, 6)
+    for key, value in prod_1.items():
+        assert prod_2[key] == value
+
+
 def test_statistical_independence_frequency_table():
     # P(x,y,z) = P(x)P(y)P(z)
     # to check that, first, create a joint dist. by product
@@ -340,9 +417,9 @@ def test_statistical_independence_frequency_table():
 
     joint_dist = freq_table1 * freq_table2 * freq_table3
 
-    px_marginal = joint_dist.marginal(["Y", "Z"])
-    py_marginal = joint_dist.marginal(["X", "Z"])
-    pz_marginal = joint_dist.marginal(["X", "Y"])
+    px_marginal = joint_dist.marginal("Y", "Z")
+    py_marginal = joint_dist.marginal("X", "Z")
+    pz_marginal = joint_dist.marginal("X", "Y")
 
     joint_dist2 = px_marginal * py_marginal * pz_marginal
 
@@ -463,6 +540,74 @@ def test_levels_is_numeric_frequency_table():
     dist = FrequencyTable(samples)
     assert not dist.discrete_rv.is_numeric
 
-    samples = [1, 2, 3, "A", "B", "C", "D"]
+
+def test_avg_frequency_table():
+    samples = ["A", "B", "C", "D"]
     dist = FrequencyTable(samples)
-    assert not dist.discrete_rv.is_numeric
+    with pytest.raises(TypeError):
+        dist.avg()
+
+    assert dist.avg(operation=lambda values: [10] * len(values)) == 10
+    assert dist.std(operation=lambda values: [10] * len(values)) == 0
+    assert dist.moment(order=3, operation=lambda values: [10] * len(values)) == 1000
+    assert dist.avg(operation=lambda values: [1, 2, 3, 4]) == 2.5
+    assert dist.std(operation=lambda values: [1, 2, 3, 4]) == 1.25
+    assert dist.moment(order=3, operation=lambda values: [1, 2, 3, 4]) == 100 / 4
+
+    samples = [1, 2, 3, 4]
+    dist = FrequencyTable(samples)
+    assert dist.avg() == 2.5
+    assert dist.std() == 1.25
+    assert dist.moment(3) == 25
+    samples = [1, 2, 3, 4, 4]
+    dist = FrequencyTable(samples)
+    assert dist.avg() == 14 / 5
+    assert dist.std() == approx(1.36)
+    assert dist.moment(order=3) == 164 / 5
+    samples = [1, 2, 3, 4, 4, 5]
+    dist = FrequencyTable(samples)
+    assert dist.avg() == 19 / 6
+    assert dist.std() == approx(1.8055555555556)
+    assert dist.moment(order=3) == 289 / 6
+
+    samples = [
+        "high",
+        "low",
+        "low",
+        "low",
+        "high",
+        "high",
+        "high",
+        "high",
+        "high",
+        "high",
+        "low",
+    ]
+
+    def to_number(levels):
+        return (1 if level == "high" else 2 for level in levels)
+
+    dist = FrequencyTable(samples)
+    assert dist.avg(to_number) == 15 / 11
+    assert dist.std(to_number) == approx(0.23140495867769)
+
+
+def test_keys_consistencies_frequency_table():
+    with pytest.raises(ValueError):
+        FrequencyTable([1, 2, 3, "A"], ["X1"], check_keys_consistencies=True)
+
+    with pytest.raises(ValueError):
+        FrequencyTable(["A", 1, 2, 3], ["X1"], check_keys_consistencies=True)
+
+    with pytest.raises(ValueError):
+        FrequencyTable(
+            [(1,), (2,), (3,), (4, 5)], ["X1"], check_keys_consistencies=True
+        )
+    with pytest.raises(ValueError):
+        FrequencyTable(
+            [(4, 5), (1,), (2,), (3,)], ["X1"], check_keys_consistencies=True
+        )
+    with pytest.raises(ValueError):
+        FrequencyTable(
+            [(4, 5), (1, 3), (2, 3, 4), (3, 7)], ["X1"], check_keys_consistencies=True
+        )

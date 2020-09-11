@@ -36,8 +36,7 @@ class Key:
 
 
 class RandomVariable(ABC):
-    def __init__(self, levels, size):
-        self.levels = levels
+    def __init__(self, size):
         self.size = size
 
     @abstractmethod
@@ -52,16 +51,19 @@ class RandomVariable(ABC):
 class DiscreteRV(RandomVariable):
     """Store the details of single discrete random variable."""
 
-    def __init__(self, name, levels):
+    def __init__(self, name, first_row):
         """Store the details of single discrete random variable.
 
         Args:
-            name (str): The discrete random variable's name.
-            levels (set): discrete levels.
+            name (str):
+                The discrete random variable's name.
+            first_row (object):
+                An example of independent variable to extract the
+                information about random variable.
         """
-        super().__init__(set(levels), size=1)
+        super().__init__(size=1)
         self.name = str(name)
-        self.is_numeric = all([isinstance(level, Number) for level in self.levels])
+        self.is_numeric = isinstance(first_row, Number)
 
     def to_key(self, *args, **kwargs):
         total_size = len(args) + len(kwargs.keys())
@@ -88,7 +90,7 @@ class DiscreteRV(RandomVariable):
         return 1
 
     def __str__(self):
-        return f"'{self.name}': {self.levels}"
+        return f"'{self.name}'"
 
     def __repr__(self):
         return self.__str__()
@@ -97,18 +99,21 @@ class DiscreteRV(RandomVariable):
 class MultiDiscreteRV(RandomVariable):
     """Store the details of or more discrete random variables."""
 
-    def __init__(self, factors, names=None, variable_name="X"):
+    def __init__(self, first_row, names=None, variable_name="X"):
         """Store the details of or more discrete random variables.
 
            it can generate the names of random variables if it is Note
            provided.
 
         Args:
-            factors (iter): A list of objects or tuples that contains the independent
-                            variables' values.
-            names (list, optional): A list of random variable names. Defaults to None.
-            variable_name (str, optional): The prefix for automatic name generation.
-                                           Defaults to "X".
+            first_row (object or a tuple):
+                An example of independent variables to extract the
+                information about random variable(s).
+            names (list, optional):
+                A list of random variable names. Defaults to None.
+            variable_name (str, optional):
+                The prefix for automatic name generation.
+                Defaults to "X".
 
         Raises:
             ValueError: When the length of provided names is not equal to
@@ -118,7 +123,7 @@ class MultiDiscreteRV(RandomVariable):
         """
         # To check the consistency of the tuples, save
         # the length of the first one and check all the others
-        first_row = next(iter(factors))
+        # first_row = next(iter(factors))
         if isinstance(first_row, tuple):
             rv_len = len(first_row)
         else:
@@ -134,36 +139,18 @@ class MultiDiscreteRV(RandomVariable):
             )
         else:
             self.names = np.array(names)
-        # Each RV has its own set of levels
-        if rv_len > 1:
-            first_row_t = tuple(first_row)
-            levels = np.array([{first_row_t[i]} for i in range(rv_len)])
-        else:
-            levels = np.array([{first_row}])
-        # We suppose the classes were tuples
-        # and each Random Variable (RV) is positioned
-        # in a fix place of the n-tuple.
-        # Therefore, the levels of the RV can be
-        # found by iterating over each tuple's item
-        if rv_len > 1:
-            # Convert each features line to tuple
-            tuples = (tuple(row) for row in factors)
-            for row in tuples:
-                if len(row) != rv_len:
-                    raise ValueError("The length of the 'factors' is not consistence.")
-                for i, level in enumerate(row):
-                    levels[i] |= {level}
-        else:
-            levels[0] = {first_row} | set(factors)
         # Store the DiscreteRV as a dictionary
-        self.multi_rvs = {
-            name: DiscreteRV(name, l) for name, l in zip(self.names, levels)
-        }
+        if isinstance(first_row, tuple):
+            self.multi_rvs = {
+                name: DiscreteRV(name, item)
+                for name, item in zip(self.names, first_row)
+            }
+        else:
+            self.multi_rvs = {self.names[0]: DiscreteRV(self.names[0], first_row)}
         # The size of the MultiDiscreteRV is the same
         # as the number RVs or their names
         size = len(self.names)
-        np_levels = np.array([item for item in levels])
-        super().__init__(levels=np_levels, size=size)
+        super().__init__(size=size)
         #
 
     def to_key(self, *args, **kwargs):
@@ -279,6 +266,68 @@ class Distribution(ABC):
         self._counter = Counter(samples)
         # Elements count
         self.total = sum(self._counter.values())
+
+    def _check_keys_consistencies_(self):
+        rv_len = self._get_random_variable_().size
+
+        def compare_single_elements():
+            try:
+                keys = iter(self.keys())
+                first_row = next(keys)
+            except StopIteration:  # Empty rows
+                return
+            first_row_type = type(first_row)
+            if isinstance(first_row, tuple):
+                # For single elements that are tuple
+                # we check both type and length
+                first_row_len = len(first_row)
+                for row in keys:
+                    if not isinstance(row, first_row_type):
+                        raise ValueError(
+                            "The type of the 'factors' are not consistence."
+                        )
+                    if len(row) != first_row_len:
+                        raise ValueError(
+                            "The length of the 'factors' are not consistence."
+                        )
+            else:  # For other single elements, we just
+                # check the type
+                for row in keys:
+                    if not isinstance(row, first_row_type):
+                        raise ValueError(
+                            "The type of the 'factors' are not consistence."
+                        )
+
+        def compare_multilevel_elements():
+            # We suppose the keys were tuples
+            # and each Random Variable (RV) is positioned
+            # in a fix place of the n-tuple.
+            # Therefore, the levels of the RV can be
+            # found by iterating over each tuple's item
+            # Convert each features line to tuple
+            tuples = (tuple(row) for row in self.keys())
+            try:
+                first_row = next(tuples)
+            except StopIteration:  # Empty rows
+                return
+            first_row_len = len(first_row)
+            first_row_types = [type(item) for item in first_row]
+            for row in tuples:
+                # compair length
+                if len(row) != first_row_len:
+                    raise ValueError("The length of the 'factors' are not consistence.")
+                # compair row's elements type
+                comparisions = [
+                    isinstance(element, type_1)
+                    for element, type_1 in zip(row, first_row_types)
+                ]
+                if not all(comparisions):
+                    raise ValueError("The types of the 'factors' are not consistence.")
+
+        if rv_len > 1:
+            compare_multilevel_elements()
+        else:
+            compare_single_elements()
 
     @staticmethod
     def digitize(samples, start, stop, num=10, endpoint=True, right=False, levels=None):
@@ -429,6 +478,19 @@ class Distribution(ABC):
     def items(self):
         return self._counter.items()
 
+    def levels(self):
+        arr = self._to_2d_array_()
+        # the last column is count, so we drop it
+        if len(arr.shape) < 2:  # empty dist
+            return np.array([])
+
+        column_num = arr.shape[1] - 1
+        arr = arr[:, :-1]
+        if column_num == 1:
+            return np.unique(arr)
+
+        return np.array([np.unique(arr[:, i]) for i in range(column_num)])
+
     def frequencies(self, normalised=True):
         """A list of frequencies of class occurenc.
 
@@ -465,6 +527,21 @@ class Distribution(ABC):
                   key and th second one is its count.
         """
         return self._counter.most_common(num)
+
+    def _to_2d_array_(self):
+        """Convert the distribution ( or the self._counter's
+           key:value) to a 2D numpy array where the array
+           rows are [[(RV_1, RV_2, ..., RV_n, count)],[...
+
+        Returns:
+            numpy ndarray:
+                A 2D numpy array that the its last column
+                is the counts.
+        """
+        if self._get_random_variable_().size == 1:
+            return np.array([(k, v) for k, v in self.items()], dtype=np.object)
+
+        return np.array([tuple(k) + (v,) for k, v in self.items()], dtype=np.object)
 
     @abstractmethod
     def _get_random_variable_(self):

@@ -1,5 +1,8 @@
 from itertools import groupby
+from itertools import islice
+from itertools import product
 from operator import itemgetter
+from multiprocessing import Pool
 import numpy as np
 from probability.distributions import Key
 from probability.distributions import DiscreteRV
@@ -9,13 +12,17 @@ from probability.distributions import Distribution
 from probability.distributions.distributions_3 import ConditionalDistribution
 
 
+def to_dist(iterable):
+    return {(k1, k2): v1 * v2 for (k1, v1), (k2, v2) in iterable}
+
+
 class FrequencyTable(Distribution):
     """Provides a frequency table from the number of occurenc of
     observed items as dictionary of (key:frequency) or an iterator
     of observed sample.
     """
 
-    def __init__(self, samples, name="X1"):
+    def __init__(self, samples, name="X1", check_keys_consistencies=True):
         """Construct a FrequencyTable from the number of occurenc in samples.
 
         Args:
@@ -24,14 +31,28 @@ class FrequencyTable(Distribution):
                 or a dictionary of (key:frequency).
             name (str):
                 Name of the random variable.
+            check_keys_consistencies (bool):
+                If True, the consistency of the keys (length
+                and type) will be checked.
+                It is better to be set 'False' for larger datasets
+                for the sake of performance.
+                Deafault is False.
 
         Raises:
             ValueError: Raises when the provided sample is None.
         """
         super().__init__(samples)
         # Random varable's details
-        self.discrete_rv = DiscreteRV(name, levels=self._counter.keys())
+        try:
+            first_row = next(iter(self.keys()))
+        except StopIteration:
+            first_row = None
+
+        self.discrete_rv = DiscreteRV(name, first_row)
         self.name = name
+        #
+        if check_keys_consistencies:
+            self._check_keys_consistencies_()
 
     def product(self, right):
         """Multiplies a Distribution to this one.
@@ -73,6 +94,59 @@ class FrequencyTable(Distribution):
             names,
         )
 
+    def product_multi_proc(self, right, process=4):
+        """Multiplies a Distribution to this one.
+           This is a parall version of product
+
+        Args:
+            right ([Distribution]):
+                The other Distribution.
+
+            process (int):
+                Number of processes
+
+        Raises:
+            ValueError:
+                Raises When the right argument is not a
+                subclass of Distribution.
+
+        Returns:
+            [type]: [description]
+        """
+        if not isinstance(right, Distribution):
+            raise ValueError("The 'right' argument must be a Distribution.")
+        # Make sure the right is FrequencyTable table too
+        # otherwise, ask the other type to handel the multiplication
+        if not isinstance(right, FrequencyTable):
+            return right.__rmul__(self)
+        # Here , we can safely assume both sides are FrequencyTable
+        # and Multiply them
+        if right is self:
+            names = [f"{self.discrete_rv.name}1", f"{self.discrete_rv.name}2"]
+        elif self.discrete_rv.name == right.discrete_rv.name:
+            names = [f"{self.discrete_rv.name}1", f"{self.discrete_rv.name}2"]
+        else:
+            names = [self.discrete_rv.name, right.discrete_rv.name]
+        # The multiplication of two FrequencyTable must
+        # be a DiscreteDistribution
+        total_len = len(self.keys()) * len(right.keys())
+        main_iter = product(self.items(), right.items())
+        slices = [
+            islice(
+                main_iter,
+                (i * total_len) // process,
+                ((i + 1) * total_len) // process,
+            )
+            for i in range(process)
+        ]
+
+        with Pool(process) as pool:
+            dicts = pool.map(to_dist, slices)
+            counter = dicts[0]
+            for next_dict in dicts[1:]:
+                counter.update(next_dict)
+            return DiscreteDistribution(counter, names)
+
     def _get_random_variable_(self):
         return self.discrete_rv
 
@@ -80,7 +154,6 @@ class FrequencyTable(Distribution):
         return (
             "Frequency table \n"
             f"random variable:'{self.discrete_rv.name}'\n"
-            f"levels: {self.discrete_rv.levels}\n"
             f"total:{self.total}"
         )
 
@@ -92,7 +165,7 @@ class FrequencyTable(Distribution):
         norm = self.total if (normalised and self.total != 0) else 1
 
         max_level_len = np.max(
-            [len(str(level)) for level in self.discrete_rv.levels]
+            [len(str(level)) for level, _ in self.items()]
             + [len(self.name), len(total_title)]
         )
 
@@ -136,6 +209,30 @@ class FrequencyTable(Distribution):
             f"|{total_title}{total_title_padding}|{self.total/norm}{total_padding}|"
         )
 
+    def avg(self, operation=None):
+        return self.moment(order=1, operation=operation)
+
+    def std(self, operation=None):
+        moment_2 = self.moment(order=2, operation=operation)
+        avg = self.avg(operation=operation)
+        return moment_2 - avg * avg
+
+    def moment(self, order=1, operation=None):
+        if not self.discrete_rv.is_numeric and operation is None:
+            raise TypeError(
+                f"The random variable '{self.discrete_rv.name}' data type"
+                " is not numeric."
+            )
+        if self.total == 0:
+            return 0.0
+        if operation is not None:
+            x_vec = np.fromiter(operation(self.keys_as_list()), dtype=np.float)
+        else:
+            x_vec = np.fromiter(self._counter.keys(), dtype=np.float)
+
+        prob_vec = np.fromiter(self._counter.values(), dtype=np.float)
+        return np.dot(np.power(x_vec, order), prob_vec) / self.total
+
     def __add__(self, that):
         """Combines two FrequencyTable and return
         a new one. All the frequencies are sum together.
@@ -148,7 +245,7 @@ class FrequencyTable(Distribution):
             else:
                 this_copy[key] = that[key]
 
-        return FrequencyTable(this_copy)
+        return FrequencyTable(this_copy, name=self.name)
 
     def __str__(self):
         return f"Frequency table (rv:'{self.discrete_rv.name}', total:{self.total})"
@@ -170,7 +267,7 @@ class DiscreteDistribution(Distribution):
     in the tuple as a random variable and find its levels.
     """
 
-    def __init__(self, samples, names=None):
+    def __init__(self, samples, names=None, check_keys_consistencies=True):
         """Construct a DiscreteDistribution from the number of occurenc in samples.
 
         Args:
@@ -181,10 +278,20 @@ class DiscreteDistribution(Distribution):
                 List of names of the random variables.
                 If it is not provided, it creates as 'Xn'.
                 Defaults to None.
+            check_keys_consistencies (bool):
+                If True, the consistency of the keys (length
+                and type) will be checked.
+                It is better to be set 'False' for larger datasets
+                for the sake of performance.
+                Deafault is False.
         """
         super().__init__(samples)
-        self.rvs = MultiDiscreteRV(list(self.keys()), names)
+        first_row = next(iter(self.keys()))
+        self.rvs = MultiDiscreteRV(first_row, names)
         self.names = self.rvs.names
+        #
+        if check_keys_consistencies:
+            self._check_keys_consistencies_()
 
     @classmethod
     def from_np_array(cls, samples, names=None):
@@ -215,11 +322,11 @@ class DiscreteDistribution(Distribution):
         # the construct
         return cls(samples=[tuple(row) for row in samples], names=names)
 
-    def marginal(self, by_names):
+    def marginal(self, *args):
         """Marginalize the distribution over a set of random variables.
 
         Args:
-            by_names (list):
+            args (list):
                 List of variable names to marginalised.
 
         Raises:
@@ -231,6 +338,7 @@ class DiscreteDistribution(Distribution):
         Returns:
             DiscreteDistribution: A new marginalised distribution.
         """
+        by_names = args
         for name in by_names:
             if name not in self.rvs:
                 raise ValueError(f"Random variable {name} is not defined.")
@@ -244,17 +352,13 @@ class DiscreteDistribution(Distribution):
         comp_indices = np.array([i for i in range(len(self.rvs)) if i not in indices])
         # Convert the self._counter's key:value to 2D numpy array
         # the array rows are (random variables, count)
-        arr = np.array([tuple(k) + (v,) for k, v in self.items()], dtype=np.object)
-
-        def to_tuple(row):
-            if row.size == 1:
-                return row[0]
-            return tuple(row)
-
+        arr = self._to_2d_array_()
+        # filter the compliment random variables by columns
+        filtered_arr = np.c_[arr[:, comp_indices], arr[:, -1]]
         # divide the 2d array's rows to a tuple of
         # compliment variables (row[comp_indices])
         # and count row[-1]
-        arr_gen = ((to_tuple(row[comp_indices]), row[-1]) for row in arr)
+        arr_gen = self._split_matrix_(filtered_arr)
         # Before calling the groupby, we have to sort the generator
         # by the tuple of compliment variables (index zero in itemgetter)
         sorted_arr = sorted(arr_gen, key=itemgetter(0))
@@ -270,11 +374,11 @@ class DiscreteDistribution(Distribution):
         }
         return DiscreteDistribution(grouped_arr, names=self.rvs.names[comp_indices])
 
-    def reduce(self, by_names):
+    def reduce(self, **kwargs):
         """Reduce the distribution by one or more factors.
 
         Args:
-            by_names (dict):
+            kwargs (dict):
                 A dictionary that its 'key' is the name
                 of the random variable and its 'value'
                 is the factor that must be reduced by.
@@ -286,6 +390,7 @@ class DiscreteDistribution(Distribution):
         Returns:
             [DiscreteDistribution]: A reduce distribution.
         """
+        by_names = kwargs
         for name in by_names:
             if name not in self.rvs:
                 raise ValueError(f"Random variable {name} is" f" not defined.")
@@ -295,9 +400,7 @@ class DiscreteDistribution(Distribution):
         #
         # Convert the self._counter's key:value to 2D numpy array
         # the array rows are (random variables, count)
-        arr_counter = np.array(
-            [tuple(k) + (v,) for k, v in self.items()], dtype=np.object
-        )
+        arr_counter = self._to_2d_array_()
         # Find the indices of compliment random variables (the other ones that
         # are not part of reduce)
         compliment_indices = [i for i in range(len(self.rvs)) if i not in indices]
@@ -305,21 +408,15 @@ class DiscreteDistribution(Distribution):
         # conditioned_arr is a boolean one, and filtering happens
         # in the second line
         conditioned_arr = np.all(arr_counter[:, indices] == values, axis=1)
-        slice_arr = arr_counter[conditioned_arr, :]
+        sliced_arr = arr_counter[conditioned_arr, :]
         # filter the 2d array columns (the compliment random variables)
         # plus the count column (which is the last column)
-        slice_arr = slice_arr[:, compliment_indices + [-1]]
-
-        def to_tuple(row):
-            if row.size == 2:
-                return row[0]
-            return tuple(row[:-1])
-
+        sliced_arr = sliced_arr[:, compliment_indices + [-1]]
         # divide the 2d array's rows to a tuple of random variables
         # and count
         # So, we make a generator that divide the rows to the tuple of
         # random variables (tuple(row[:-1]) and count (row[-1])
-        arr_gen = ((to_tuple(row), row[-1]) for row in slice_arr)
+        arr_gen = self._split_matrix_(sliced_arr)
         # Before calling the groupby, we have to sort the generator
         # by the tuple of random variables (index zero in itemgetter)
         sorted_slice_arr = sorted(arr_gen, key=itemgetter(0))
@@ -338,12 +435,12 @@ class DiscreteDistribution(Distribution):
         # from self.rvs.names
         return DiscreteDistribution(slice_dist, self.rvs.names[compliment_indices])
 
-    def condition_on(self, on_names):
+    def condition_on(self, *args):
         """Creates the conditional distribution based on
            the provided names of random variables.
 
         Args:
-            on_names (list):
+            args (list):
                 List of names of provided random
                 variables.
 
@@ -355,6 +452,7 @@ class DiscreteDistribution(Distribution):
         Returns:
             DiscreteConditionalDistribution
         """
+        on_names = args
         for name in on_names:
             if name not in self.rvs:
                 raise ValueError(f"Random variable {name} is" f" not defined.")
@@ -371,21 +469,11 @@ class DiscreteDistribution(Distribution):
         comp_indices = np.array([i for i in range(len(self.rvs)) if i not in indices])
         # Convert the self._counter's key:value to 2D numpy array
         # the array rows are (random variables, count)
-        arr = np.array([tuple(k) + (v,) for k, v in self.items()], dtype=np.object)
-        #
-
-        def to_tuple(row):
-            if row.size == 1:
-                return row[0]
-            return tuple(row)
-
+        arr = self._to_2d_array_()
         # divide the 2d array's rows to a tuple of random variables,
         # (row[indices]), compliment variables (row[comp_indices])
         # and count row[-1]
-        arr_gen = (
-            (to_tuple(row[indices]), to_tuple(row[comp_indices]), row[-1])
-            for row in arr
-        )
+        arr_gen = self._split_matrix_(arr, indices)
         # Before calling the groupby, we have to sort the generator
         # by the tuple of random variables (index zero in itemgetter)
         # And since later we will call the group by on group,
@@ -529,6 +617,48 @@ class DiscreteDistribution(Distribution):
     def _get_random_variable_(self):
         return self.rvs
 
+    def _split_matrix_(self, array, indices=None):
+        """Convert the 2D array of the distribution
+           to a generator of 2-elements tuple like
+           ((RV_1, RV_2, ..., RV_n), count)
+
+           If the indices is provided, the tuple is
+           like
+           ((RV_1, ..., RV_n), (RCV_1, ..., RCV_m), count)
+           where RV_i is from indices and RCV_j is
+           from its compliment
+
+        Args:
+            array (numpy ndarray):
+                A 2D array of distribution
+            indices (list, optional):
+                list of indices to filter the column.
+                Defaults to None.
+        """
+
+        def to_tuple(row):
+            """Convert the row to tuple or single value."""
+            if row.size == 1:
+                return row[0]
+            return tuple(row)
+
+        # divide the 2d array's rows to a tuple of
+        # random variables (row[indices])
+        # and count row[-1]
+        if indices is None:
+            return ((to_tuple(row[:-1]), row[-1]) for row in array)
+
+        # Find the indices of compliment random variables (the other ones that
+        # are not part of conditioning)
+        comp_indices = np.array([i for i in range(len(self.rvs)) if i not in indices])
+        # divide the 2d array's rows to a tuple of random variables,
+        # (row[indices]), compliment variables (row[comp_indices])
+        # and count row[-1]
+        return (
+            (to_tuple(row[indices]), to_tuple(row[comp_indices]), row[-1])
+            for row in array
+        )
+
     def summary(self):
         return (
             "Discrete distribution \n"
@@ -541,24 +671,17 @@ class DiscreteDistribution(Distribution):
     def to_table(self, normalised=False, sort=False):
 
         title = "probability" if normalised else "frequency"
-        total_title = "**total**"
+        # total_title = "**total**"
 
-        max_levels_len = [
-            np.max(
-                [len(str(level)) for level in levels]
-                + [len(self.names[i]), len(total_title)]
-            )
-            for i, levels in enumerate(self.rvs.levels)
-        ]
+        arr = self._to_2d_array_().astype("U")
+        arr_len = np.apply_along_axis(lambda row: [len(item) for item in row], 0, arr)
+        max_levels_len = np.max(arr_len[:, :-1], axis=1)
 
         norm = self.total if normalised else 1
         if norm == 0:
             norm = 1
 
-        max_freq_len = np.max(
-            [len(str(value / norm)) for _, value in self.items()]
-            + [len(str(self.total)), len(title)]
-        )
+        max_freq_len = np.max(arr_len[:, -1])
 
         def padding(max_len):
             def str_padding(value):
@@ -604,12 +727,39 @@ class DiscreteDistribution(Distribution):
 
         return f"{header}\n{horizontal_line}\n{rows}"
 
+    def avg(self, indices=None):
+        return self.moment(order=1, indices=indices)
+
+    def std(self, indices=None):
+        moment_2 = self.moment(order=2, indices=indices)
+        avg = self.avg(indices)
+        return moment_2 - avg * avg
+
+    def moment(self, order=1, indices=None):
+        if self.total == 0:
+            return 0.0
+        matrix = self._to_2d_array_()
+        # random variables
+        if indices is None:
+            x_matrix = matrix[:, :-1]
+        else:
+            x_matrix = matrix[:, :-1][:, indices]
+        # counts
+        prob_vec = matrix[:, -1]
+        return np.dot(np.power(x_matrix.T, order), prob_vec).T / self.total
+
     def __lshift__(self, by_indices):
         """marginalization operator"""
+        if isinstance(by_indices, tuple):
+            return self.marginal(*by_indices)
+
         return self.marginal(by_indices)
 
     def __or__(self, provided):
         """conditional operator"""
+        if isinstance(provided, tuple):
+            return self.condition_on(*provided)
+
         return self.condition_on(provided)
 
     def __str__(self):
@@ -646,3 +796,27 @@ class DiscreteDistribution(Distribution):
             raise ValueError("The 'right' argument must be a DiscreteDistribution.")
 
         return left_dist.product(self)
+
+    def __add__(self, that):
+        """Combines two FrequencyTable and return
+        a new one. All the frequencies are sum together.
+        This is not a mathematical sum.
+        """
+        if not isinstance(that, DiscreteDistribution):
+            raise ValueError(
+                "DiscreteDistribution can only adds to DiscreteDistribution."
+            )
+
+        for name in self.names:
+            if name not in that.names:
+                raise ValueError(
+                    "Two Distributions does not have " "the same random variables."
+                )
+        this_copy = self._counter.copy()
+        for key in that.keys():
+            if key in this_copy:
+                this_copy[key] += that[key]
+            else:
+                this_copy[key] = that[key]
+
+        return DiscreteDistribution(this_copy, names=self.names)

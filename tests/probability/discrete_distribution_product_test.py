@@ -74,20 +74,6 @@ def test_product_with_one_common_var_discrete_distribution():
     dist3 = dist1 * dist2
     assert all(compare(dist3.names, ["X1", "X2", "X3", "X4", "X5", "X6", "X7"]))
     assert dist3.total == (36 + 164) * 64 + (100 + 51) * 58
-    assert all(
-        compare(
-            dist3.rvs.levels,
-            np.r_[
-                dist1.rvs[0].levels,
-                dist1.rvs[1].levels,
-                dist1.rvs[2].levels,
-                dist1.rvs[3].levels,
-                dist2.rvs[1].levels,
-                dist2.rvs[2].levels,
-                dist2.rvs[3].levels,
-            ],
-        )
-    )
 
     # check probabilites
     assert dist3.frequency(("a", "x", 1, 33, "high", "normal", "x")) == 2
@@ -111,19 +97,6 @@ def test_product_with_two_common_vars_discrete_distribution():
     assert all(compare(dist3.names, ["X1", "X2", "X3", "X4", "X5", "X6"]))
     assert dist3.total == 24 * 36 + 28 * 100 + 40 * 164 + 30 * 51
 
-    assert all(
-        compare(
-            dist3.rvs.levels,
-            np.r_[
-                dist1.rvs[0].levels,
-                dist1.rvs[1].levels,
-                dist1.rvs[2].levels,
-                dist1.rvs[3].levels,
-                dist2.rvs[1].levels,
-                dist2.rvs[2].levels,
-            ],
-        )
-    )
     # check probabilites
     assert dist3.frequency(("a", "y", 2, 33, "high", "under")) == 6 * 25
     assert dist3.probability(("a", "y", 2, 33, "high", "under")) == 150 / 11754
@@ -146,7 +119,6 @@ def test_product_with_no_common_vars_discrete_distribution():
     dist3 = dist1 * dist2
     assert all(compare(dist3.names, ["X1", "X2", "X3", "X4", "Y1", "Y2", "Y3", "Y4"]))
     assert dist3.total == (dist1.total * dist2.total)
-    assert all(compare(dist3.rvs.levels, np.r_[dist1.rvs.levels, dist2.rvs.levels]))
 
     # check probabilites
     assert dist3.frequency(("a", "x", 1, 33, 2, "high", "under", "x")) == 9
@@ -166,11 +138,6 @@ def test_product_with_frequency_table_discrete_distribution():
     dist3 = dist1 * freq_table1
     assert all(compare(dist3.names, ["X1", "X2", "X3", "X4", "Y1"]))
     assert dist3.total == (dist1.total * freq_table1.total)
-    assert all(
-        compare(
-            dist3.rvs.levels, np.r_[dist1.rvs.levels, freq_table1.discrete_rv.levels]
-        )
-    )
 
     # check probabilites
     assert dist3.frequency(("a", "y", 2, 33, "B")) == 6 * 4
@@ -180,11 +147,6 @@ def test_product_with_frequency_table_discrete_distribution():
     dist3 = freq_table1 * dist1
     assert all(compare(dist3.names, ["Y1", "X1", "X2", "X3", "X4"]))
     assert dist3.total == (dist1.total * freq_table1.total)
-    assert all(
-        compare(
-            dist3.rvs.levels, np.r_[freq_table1.discrete_rv.levels, dist1.rvs.levels]
-        )
-    )
 
     # check probabilites
     assert dist3.frequency(("B", "a", "y", 2, 33)) == 6 * 4
@@ -198,22 +160,10 @@ def test_product_with_frequency_table_discrete_distribution():
     dist3 = dist1 * freq_table1
     assert all(compare(dist3.names, ["X1", "X2", "X3", "X4"]))
     assert dist3.total == 52 * 3 + 70 * 4
-    assert all(compare(dist3.rvs.levels, dist1.rvs.levels))
 
     dist3 = freq_table1 * dist1
     assert all(compare(dist3.names, ["X2", "X1", "X3", "X4"]))
     assert dist3.total == 52 * 3 + 70 * 4
-    assert all(
-        compare(
-            dist3.rvs.levels,
-            np.r_[
-                dist1.rvs.levels[1],
-                dist1.rvs.levels[0],
-                dist1.rvs.levels[2],
-                dist1.rvs.levels[3],
-            ],
-        )
-    )
 
 
 def test_statistical_independence_frequency_table():
@@ -274,7 +224,7 @@ def test_statistical_independence_frequency_table():
     marginals = []
     for name in joint_dist.names:
         names_except_one = list(set(joint_dist.names) - {name})
-        marginal = joint_dist.marginal(names_except_one)
+        marginal = joint_dist.marginal(*names_except_one)
         marginals.append(marginal)
 
     joint_dist2 = np.product(marginals)
@@ -292,7 +242,7 @@ def test_statistical_independence_frequency_table():
     marginals = []
     for name in joint_dist.names:
         names_except_one = list(set(joint_dist.names) - {name})
-        marginal = joint_dist.marginal(names_except_one)
+        marginal = joint_dist.marginal(*names_except_one)
         marginals.append(marginal)
 
     joint_dist2 = np.product(marginals)

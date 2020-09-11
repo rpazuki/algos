@@ -22,13 +22,9 @@ def test_reduce_by_name_discrete_distribution():
         ("b", "y", 2, 44): 16,
     }
     disc_dist = DiscreteDistribution(samples)
-    indices = {"X2": "y"}
-    reduced_dist = disc_dist.reduce(indices)
+    reduced_dist = disc_dist.reduce(X2="y")
     assert reduced_dist.rvs.size == 3
     assert all(compare(reduced_dist.rvs.names, ["X1", "X3", "X4"]))
-    assert reduced_dist.rvs[0].levels == {"a", "b"}
-    assert reduced_dist.rvs[1].levels == {1, 2}
-    assert reduced_dist.rvs[2].levels == {33, 44}
     assert reduced_dist[("a", 1, 33)] == 5
     assert reduced_dist[("b", 2, 44)] == 16
     assert reduced_dist.frequency(("a", 1, 33)) == 5
@@ -36,12 +32,9 @@ def test_reduce_by_name_discrete_distribution():
     assert reduced_dist.probability(("a", 1, 33)) == 5 / 84
     assert reduced_dist.probability(("b", 2, 44)) == 16 / 84
 
-    indices = {"X2": "y", "X3": 1}
-    reduced_dist = disc_dist.reduce(indices)
+    reduced_dist = disc_dist.reduce(X2="y", X3=1)
     assert reduced_dist.rvs.size == 2
     assert all(compare(reduced_dist.rvs.names, ["X1", "X4"]))
-    assert reduced_dist.rvs[0].levels == {"a", "b"}
-    assert reduced_dist.rvs[1].levels == {33, 44}
     assert reduced_dist[("a", 33)] == 5
     assert reduced_dist[("b", 44)] == 15
     assert reduced_dist.frequency(("a", 33)) == 5
@@ -49,11 +42,9 @@ def test_reduce_by_name_discrete_distribution():
     assert reduced_dist.probability(("a", 33)) == 5 / 40
     assert reduced_dist.probability(("b", 44)) == 15 / 40
 
-    indices = {"X1": "b", "X3": 1, "X4": 44}
-    reduced_dist = disc_dist.reduce(indices)
+    reduced_dist = disc_dist.reduce(X1="b", X3=1, X4=44)
     assert reduced_dist.rvs.size == 1
     assert all(compare(reduced_dist.rvs.names, ["X2"]))
-    assert reduced_dist.rvs[0].levels == {"x", "y"}
     assert reduced_dist["x"] == 11
     assert reduced_dist["y"] == 15
     assert reduced_dist.frequency("x") == 11
@@ -63,13 +54,9 @@ def test_reduce_by_name_discrete_distribution():
 
     disc_dist = DiscreteDistribution(samples, names=["Y", "Z", "W", "X"])
 
-    indices = {"Z": "y"}
-    reduced_dist = disc_dist.reduce(indices)
+    reduced_dist = disc_dist.reduce(Z="y")
     assert reduced_dist.rvs.size == 3
     assert all(compare(reduced_dist.rvs.names, ["Y", "W", "X"]))
-    assert reduced_dist.rvs[0].levels == {"a", "b"}
-    assert reduced_dist.rvs[1].levels == {1, 2}
-    assert reduced_dist.rvs[2].levels == {33, 44}
     assert reduced_dist[("a", 1, 33)] == 5
     assert reduced_dist[("b", 2, 44)] == 16
     assert reduced_dist.frequency(("a", 1, 33)) == 5
@@ -77,12 +64,9 @@ def test_reduce_by_name_discrete_distribution():
     assert reduced_dist.probability(("a", 1, 33)) == 5 / 84
     assert reduced_dist.probability(("b", 2, 44)) == 16 / 84
 
-    indices = {"Z": "y", "W": 1}
-    reduced_dist = disc_dist.reduce(indices)
+    reduced_dist = disc_dist.reduce(Z="y", W=1)
     assert reduced_dist.rvs.size == 2
     assert all(compare(reduced_dist.rvs.names, ["Y", "X"]))
-    assert reduced_dist.rvs[0].levels == {"a", "b"}
-    assert reduced_dist.rvs[1].levels == {33, 44}
     assert reduced_dist[("a", 33)] == 5
     assert reduced_dist[("b", 44)] == 15
     assert reduced_dist.frequency(("a", 33)) == 5
@@ -90,11 +74,9 @@ def test_reduce_by_name_discrete_distribution():
     assert reduced_dist.probability(("a", 33)) == 5 / 40
     assert reduced_dist.probability(("b", 44)) == 15 / 40
 
-    indices = {"Y": "b", "W": 1, "X": 44}
-    reduced_dist = disc_dist.reduce(indices)
+    reduced_dist = disc_dist.reduce(Y="b", W=1, X=44)
     assert reduced_dist.rvs.size == 1
     assert all(compare(reduced_dist.rvs.names, ["Z"]))
-    assert reduced_dist.rvs[0].levels == {"x", "y"}
     assert reduced_dist["x"] == 11
     assert reduced_dist["y"] == 15
     assert reduced_dist.frequency("x") == 11

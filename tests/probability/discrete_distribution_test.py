@@ -1,26 +1,112 @@
 import pytest
+from pytest import approx
 import numpy as np
 from probability.distributions import DiscreteDistribution
 from tests.helpers import compare
 
 
-def test_invalid_samples_discrete_distribution():
-
-    # mismatch length
+def test_keys_consistencies_discrete_distribution():
     with pytest.raises(ValueError):
-        DiscreteDistribution({("A", "b", "x"): 2, ("B", "b"): 3})
+        DiscreteDistribution([1, 2, 3, "A"], ["X1"], check_keys_consistencies=True)
 
     with pytest.raises(ValueError):
-        DiscreteDistribution({("A", "b", "x"): 2, ("B", "b"): 3, ("A", "b", "y"): 2})
+        DiscreteDistribution(["A", 1, 2, 3], ["X1"], check_keys_consistencies=True)
 
     with pytest.raises(ValueError):
         DiscreteDistribution(
-            {("A", "b", "x"): 2, ("B", "b"): 3, ("A", "b", "y"): 2, ("A", "b", "z"): 5}
+            [(1,), (2,), (3,), (4, 5)], ["X1"], check_keys_consistencies=True
         )
-
     with pytest.raises(ValueError):
         DiscreteDistribution(
-            {("b", "x"): 2, ("B", "b"): 3, ("A", "b", "y"): 2, ("A", "b", "z"): 5}
+            [(4, 5), (1,), (2,), (3,)], ["X1"], check_keys_consistencies=True
+        )
+    with pytest.raises(ValueError):
+        DiscreteDistribution(
+            [(4, 5), (1, 3), (2, 3, 4), (3, 7)], ["X1"], check_keys_consistencies=True
+        )
+    with pytest.raises(ValueError):
+        DiscreteDistribution(
+            [("a", "1", "w1"), ("b", 2, "w1"), ("c", 3, "w2"), ("d", 4, "w2")],
+            ["X1", "X2", "X3"],
+            check_keys_consistencies=True,
+        )
+    with pytest.raises(ValueError):
+        DiscreteDistribution(
+            [("a", 1, "w1"), ("b", "2", "w1"), ("c", 3, "w2"), ("d", 4, "w2")],
+            ["X1", "X2", "X3"],
+            check_keys_consistencies=True,
+        )
+    with pytest.raises(ValueError):
+        DiscreteDistribution(
+            [("a", 1, "w1"), ("b", 2, "w1"), ("c", 3, "w2"), ("d", "4", "w2")],
+            ["X1", "X2", "X3"],
+            check_keys_consistencies=True,
+        )
+    with pytest.raises(ValueError):
+        DiscreteDistribution(
+            [("a", 1, "w1"), ("b", 2), ("c", 3, "w2"), ("d", "4", "w2")],
+            ["X1", "X2", "X3"],
+            check_keys_consistencies=True,
+        )
+    with pytest.raises(ValueError):
+        DiscreteDistribution(
+            [(1, "w1"), ("b", 2, "w1"), ("c", 3, "w2"), ("d", "4", "w2")],
+            ["X1", "X2", "X3"],
+            check_keys_consistencies=True,
+        )
+    with pytest.raises(ValueError):
+        DiscreteDistribution(
+            [("a", None, "w1"), ("b", 2, "w1"), ("c", 3, "w2"), ("d", "4", "w2")],
+            ["X1", "X2", "X3"],
+            check_keys_consistencies=True,
+        )
+    with pytest.raises(ValueError):
+        DiscreteDistribution(
+            [("a", 1, "w1", None), ("b", 2, "w1", 2), ("c", 3, "w2", 1)],
+            ["X1", "X2", "X3", "X4"],
+            check_keys_consistencies=True,
+        )
+    with pytest.raises(ValueError):
+        DiscreteDistribution(
+            [("a", 1, "w1", 4), ("b", None, "w1", 2), ("c", 3, "w2", 1)],
+            ["X1", "X2", "X3", "X4"],
+            check_keys_consistencies=True,
+        )
+    with pytest.raises(ValueError):
+        DiscreteDistribution(
+            [("a", 1, "w1", "4"), ("b", 2, "w1", 2), ("c", 3, "w2", 1)],
+            ["X1", "X2", "X3", "X4"],
+            check_keys_consistencies=True,
+        )
+    with pytest.raises(ValueError):
+        DiscreteDistribution(
+            [("a", 1, 1, 4), ("b", 2, "w1", 2), ("c", 3, "w2", 1)],
+            ["X1", "X2", "X3", "X4"],
+            check_keys_consistencies=True,
+        )
+    with pytest.raises(ValueError):
+        DiscreteDistribution(
+            [("a", 1, "w1", 4), ("b", "2", "w1", 2), ("c", 3, "w2", 1)],
+            ["X1", "X2", "X3", "X4"],
+            check_keys_consistencies=True,
+        )
+    with pytest.raises(ValueError):
+        DiscreteDistribution(
+            [("a", 1, "w1", 4), (1, 2, "w1", 2), ("c", 3, "w2", 1)],
+            ["X1", "X2", "X3", "X4"],
+            check_keys_consistencies=True,
+        )
+    with pytest.raises(ValueError):
+        DiscreteDistribution(
+            [("a", 1, "w1", 4), ("b", 2, "w1", 2), ("c", "3", "w2", "1")],
+            ["X1", "X2", "X3", "X4"],
+            check_keys_consistencies=True,
+        )
+    with pytest.raises(ValueError):
+        DiscreteDistribution(
+            [("a", 1, "w1", 4), ("b", 2, 2), ("c", 3, "w2", 1)],
+            ["X1", "X2", "X3", "X4"],
+            check_keys_consistencies=True,
         )
 
 
@@ -60,8 +146,8 @@ def test_numpy_array_discrete_distribution():
 
 def test_one_levels_discrete_distribution():
     dist = DiscreteDistribution({"Dog": 2})
+    assert all(compare(dist.keys_as_list(), ["Dog"]))
     assert dist.rvs.size == 1
-    assert dist.rvs[0].levels == {"Dog"}
     assert dist["Dog"] == 2
     assert dist["Cat"] == 0
     assert all(compare(dist.frequencies(normalised=True), [1]))
@@ -70,8 +156,8 @@ def test_one_levels_discrete_distribution():
     assert dist.prob(X1="Dog") == 1
 
     dist = DiscreteDistribution({"Dog": 2, "Cat": 3})
+    assert all(compare(dist.keys_as_list(), ["Dog", "Cat"]))
     assert dist.rvs.size == 1
-    assert dist.rvs[0].levels == {"Dog", "Cat"}
     assert dist["Dog"] == 2
     assert dist["Cat"] == 3
     assert dist["Dolphin"] == 0
@@ -85,8 +171,8 @@ def test_one_levels_discrete_distribution():
     assert dist.prob(X1="Dolphin") == 0
 
     dist = DiscreteDistribution({"Dog": 2, "Cat": 3, "Dolphin": 4})
+    assert all(compare(dist.keys_as_list(), ["Dog", "Cat", "Dolphin"]))
     assert dist.rvs.size == 1
-    assert dist.rvs[0].levels == {"Dog", "Cat", "Dolphin"}
     assert dist["Dog"] == 2
     assert dist["Cat"] == 3
     assert dist["Dolphin"] == 4
@@ -105,9 +191,10 @@ def test_one_levels_discrete_distribution():
 
 def test_two_levels_discrete_distribution():
     dist = DiscreteDistribution({("A", "y"): 2})
+    both_levels = zip(dist.levels(), [["A"], ["y"]])
+    for levels_1, levels_2 in both_levels:
+        assert all(compare(levels_1, levels_2))
     assert dist.rvs.size == 2
-    assert dist.rvs[0].levels == {"A"}
-    assert dist.rvs[1].levels == {"y"}
     assert dist[("A", "y")] == 2
     assert dist[("A", "x")] == 0
     assert all(compare(dist.frequencies(normalised=True), [1]))
@@ -118,9 +205,10 @@ def test_two_levels_discrete_distribution():
     assert dist.prob(X1="A", X2="y") == 1
 
     dist = DiscreteDistribution({("A", "x"): 2, ("A", "y"): 2})
+    both_levels = zip(dist.levels(), [["A"], ["x", "y"]])
+    for levels_1, levels_2 in both_levels:
+        assert all(compare(levels_1, levels_2))
     assert dist.rvs.size == 2
-    assert dist.rvs[0].levels == {"A"}
-    assert dist.rvs[1].levels == {"y", "x"}
     assert dist[("A", "y")] == 2
     assert dist[("A", "x")] == 2
     assert all(compare(dist.frequencies(normalised=True), [2 / 4, 2 / 4]))
@@ -135,9 +223,10 @@ def test_two_levels_discrete_distribution():
     assert dist.prob(X1="A", X2="x") == 0.5
 
     dist = DiscreteDistribution({("A", "x"): 2, ("B", "y"): 2})
+    both_levels = zip(dist.levels(), [["A", "B"], ["x", "y"]])
+    for levels_1, levels_2 in both_levels:
+        assert all(compare(levels_1, levels_2))
     assert dist.rvs.size == 2
-    assert dist.rvs[0].levels == {"A", "B"}
-    assert dist.rvs[1].levels == {"y", "x"}
     assert dist[("A", "x")] == 2
     assert dist[("B", "y")] == 2
     assert all(compare(dist.frequencies(normalised=True), [2 / 4, 2 / 4]))
@@ -152,9 +241,10 @@ def test_two_levels_discrete_distribution():
     assert dist.prob(X1="B", X2="y") == 0.5
 
     dist = DiscreteDistribution({("A", "x"): 1, ("A", "y"): 2, ("B", "x"): 3})
+    both_levels = zip(dist.levels(), [["A", "B"], ["x", "y"]])
+    for levels_1, levels_2 in both_levels:
+        assert all(compare(levels_1, levels_2))
     assert dist.rvs.size == 2
-    assert dist.rvs[0].levels == {"A", "B"}
-    assert dist.rvs[1].levels == {"y", "x"}
     assert dist[("A", "x")] == 1
     assert dist[("A", "y")] == 2
     assert dist[("B", "x")] == 3
@@ -169,9 +259,10 @@ def test_two_levels_discrete_distribution():
     dist = DiscreteDistribution(
         {("A", "x"): 1, ("A", "y"): 2, ("B", "x"): 3, ("B", "y"): 4}
     )
+    both_levels = zip(dist.levels(), [["A", "B"], ["x", "y"]])
+    for levels_1, levels_2 in both_levels:
+        assert all(compare(levels_1, levels_2))
     assert dist.rvs.size == 2
-    assert dist.rvs[0].levels == {"A", "B"}
-    assert dist.rvs[1].levels == {"y", "x"}
     assert dist[("A", "x")] == 1
     assert dist[("A", "y")] == 2
     assert dist[("B", "x")] == 3
@@ -186,9 +277,10 @@ def test_two_levels_discrete_distribution():
     dist = DiscreteDistribution(
         {("A", "x"): 1, ("A", "y"): 2, ("B", "x"): 3, ("B", "y"): 4, ("C", "y"): 5}
     )
+    both_levels = zip(dist.levels(), [["A", "B", "C"], ["x", "y"]])
+    for levels_1, levels_2 in both_levels:
+        assert all(compare(levels_1, levels_2))
     assert dist.rvs.size == 2
-    assert dist.rvs[0].levels == {"A", "B", "C"}
-    assert dist.rvs[1].levels == {"y", "x"}
     assert dist[("A", "x")] == 1
     assert dist[("A", "y")] == 2
     assert dist[("B", "x")] == 3
@@ -211,9 +303,10 @@ def test_two_levels_discrete_distribution():
     dist = DiscreteDistribution(
         {("A", "x"): 1, ("A", "y"): 2, ("B", "x"): 3, ("B", "y"): 4, ("C", "z"): 5}
     )
+    both_levels = zip(dist.levels(), [["A", "B", "C"], ["x", "y", "z"]])
+    for levels_1, levels_2 in both_levels:
+        assert all(compare(levels_1, levels_2))
     assert dist.rvs.size == 2
-    assert dist.rvs[0].levels == {"A", "B", "C"}
-    assert dist.rvs[1].levels == {"y", "x", "z"}
     assert dist.prob(X1="A", X2="x") == 1 / 15
     assert dist.prob(X1="A", X2="y") == 2 / 15
     assert dist.prob(X1="B", X2="x") == 3 / 15
@@ -227,10 +320,10 @@ def test_two_levels_discrete_distribution():
 
 def test_three_levels_discrete_distribution():
     dist = DiscreteDistribution({("A", "y", 1): 2})
+    both_levels = zip(dist.levels(), [["A"], ["y"], [1]])
+    for levels_1, levels_2 in both_levels:
+        assert all(compare(levels_1, levels_2))
     assert dist.rvs.size == 3
-    assert dist.rvs[0].levels == {"A"}
-    assert dist.rvs[1].levels == {"y"}
-    assert dist.rvs[2].levels == {1}
     assert dist[("A", "y", 1)] == 2
     assert dist[("A", "x", 2)] == 0
     assert all(compare(dist.frequencies(normalised=True), [1]))
@@ -239,10 +332,10 @@ def test_three_levels_discrete_distribution():
     assert dist.prob(X1="A", X2="y", X3=2) == 0
 
     dist = DiscreteDistribution({("A", "x", 1): 2, ("A", "y", 1): 2})
+    both_levels = zip(dist.levels(), [["A"], ["x", "y"], [1]])
+    for levels_1, levels_2 in both_levels:
+        assert all(compare(levels_1, levels_2))
     assert dist.rvs.size == 3
-    assert dist.rvs[0].levels == {"A"}
-    assert dist.rvs[1].levels == {"y", "x"}
-    assert dist.rvs[2].levels == {1}
     assert dist[("A", "x", 1)] == 2
     assert dist[("A", "y", 1)] == 2
     assert all(compare(dist.frequencies(normalised=True), [0.5, 0.5]))
@@ -252,10 +345,10 @@ def test_three_levels_discrete_distribution():
     assert dist.prob(X1="A", X2="y", X3=2) == 0
 
     dist = DiscreteDistribution({("A", "x", 1): 2, ("B", "y", 2): 2})
+    both_levels = zip(dist.levels(), [["A", "B"], ["x", "y"], [1, 2]])
+    for levels_1, levels_2 in both_levels:
+        assert all(compare(levels_1, levels_2))
     assert dist.rvs.size == 3
-    assert dist.rvs[0].levels == {"A", "B"}
-    assert dist.rvs[1].levels == {"y", "x"}
-    assert dist.rvs[2].levels == {1, 2}
     assert dist[("A", "x", 1)] == 2
     assert dist[("B", "y", 2)] == 2
     assert dist[("B", "y", 3)] == 0
@@ -265,10 +358,10 @@ def test_three_levels_discrete_distribution():
     assert dist.prob(X1="B", X2="y", X3=2) == 0.5
 
     dist = DiscreteDistribution({("A", "x", 1): 1, ("A", "y", 2): 2, ("B", "x", 1): 3})
+    both_levels = zip(dist.levels(), [["A", "B"], ["x", "y"], [1, 2]])
+    for levels_1, levels_2 in both_levels:
+        assert all(compare(levels_1, levels_2))
     assert dist.rvs.size == 3
-    assert dist.rvs[0].levels == {"A", "B"}
-    assert dist.rvs[1].levels == {"y", "x"}
-    assert dist.rvs[2].levels == {1, 2}
     assert dist[("A", "x", 1)] == 1
     assert dist[("A", "y", 2)] == 2
     assert dist[("B", "x", 1)] == 3
@@ -283,10 +376,10 @@ def test_three_levels_discrete_distribution():
     dist = DiscreteDistribution(
         {("A", "x", 1): 1, ("A", "y", 2): 2, ("B", "x", 1): 3, ("B", "y", 2): 4}
     )
+    both_levels = zip(dist.levels(), [["A", "B"], ["x", "y"], [1, 2]])
+    for levels_1, levels_2 in both_levels:
+        assert all(compare(levels_1, levels_2))
     assert dist.rvs.size == 3
-    assert dist.rvs[0].levels == {"A", "B"}
-    assert dist.rvs[1].levels == {"y", "x"}
-    assert dist.rvs[2].levels == {1, 2}
     assert dist[("A", "x", 1)] == 1
     assert dist[("A", "y", 2)] == 2
     assert dist[("B", "x", 1)] == 3
@@ -307,10 +400,10 @@ def test_three_levels_discrete_distribution():
             ("C", "y", 3): 5,
         }
     )
+    both_levels = zip(dist.levels(), [["A", "B", "C"], ["x", "y"], [1, 2, 3]])
+    for levels_1, levels_2 in both_levels:
+        assert all(compare(levels_1, levels_2))
     assert dist.rvs.size == 3
-    assert dist.rvs[0].levels == {"A", "B", "C"}
-    assert dist.rvs[1].levels == {"y", "x"}
-    assert dist.rvs[2].levels == {1, 2, 3}
     assert dist[("A", "x", 1)] == 1
     assert dist[("A", "y", 2)] == 2
     assert dist[("B", "x", 1)] == 3
@@ -337,10 +430,10 @@ def test_three_levels_discrete_distribution():
             ("C", "z", 4): 5,
         }
     )
+    both_levels = zip(dist.levels(), [["A", "B", "C"], ["x", "y", "z"], [1, 2, 3, 4]])
+    for levels_1, levels_2 in both_levels:
+        assert all(compare(levels_1, levels_2))
     assert dist.rvs.size == 3
-    assert dist.rvs[0].levels == {"A", "B", "C"}
-    assert dist.rvs[1].levels == {"y", "x", "z"}
-    assert dist.rvs[2].levels == {1, 2, 3, 4}
     assert dist[("A", "x", 1)] == 1
     assert dist[("A", "y", 2)] == 2
     assert dist[("B", "x", 3)] == 3
@@ -392,3 +485,31 @@ def test_levels_is_numeric_discrete_distribution():
     assert dist.rvs["X3"].is_numeric
     assert dist.rvs["X4"].is_numeric
     assert dist.rvs["X5"].is_numeric
+
+
+def test_avg_discrete_distribution():
+    samples = {
+        (1, 1, 1): 1,
+        (1, 1, 2): 1,
+        (1, 1, 3): 1,
+        (1, 2, 1): 2,
+        (1, 2, 2): 2,
+        (1, 2, 3): 2,
+        (1, 3, 1): 3,
+        (1, 3, 2): 3,
+        (1, 3, 3): 3,
+    }
+    dist = DiscreteDistribution(samples)
+    assert all(compare(dist.avg(), [1, (3 + 12 + 27) / 18, 2]))
+    assert all(compare(dist.avg(indices=[0, 1, 2]), [1, (3 + 12 + 27) / 18, 2]))
+    assert all(compare(dist.avg(indices=[0, 2, 1]), [1, 2, (3 + 12 + 27) / 18]))
+    assert all(compare(dist.avg(indices=[0, 1]), [1, (3 + 12 + 27) / 18]))
+    assert all(compare(dist.avg(indices=[0, 2]), [1, 2]))
+    assert all(compare(dist.avg(indices=[2, 0]), [2, 1]))
+    assert all(compare(dist.avg(indices=[1, 2]), [(3 + 12 + 27) / 18, 2]))
+    assert dist.avg(indices=[0]) == 1
+    assert dist.std(indices=[0]) == 0
+    assert dist.avg(indices=[1]) == (3 + 12 + 27) / 18
+    assert dist.std(indices=[1]) == approx(0.55555555555556)
+    assert dist.avg(indices=[2]) == 2
+    assert dist.std(indices=[2]) == approx(0.66666666666667)

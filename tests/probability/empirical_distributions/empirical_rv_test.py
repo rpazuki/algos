@@ -1,6 +1,5 @@
 import pytest
-from probability.distributions import DiscreteRV
-from tests.helpers import compare_in
+from probability.empirical_distributions import DiscreteRV
 
 
 def test_create_discreterv():

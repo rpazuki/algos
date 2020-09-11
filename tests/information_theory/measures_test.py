@@ -1,7 +1,7 @@
 import numpy as np
 from pytest import approx
-from probability.distributions import FrequencyTable
-from probability.distributions import DiscreteDistribution
+from probability.empirical_distributions import FrequencyTable
+from probability.empirical_distributions import DiscreteDistribution
 from information_theory.measures import entropy
 
 

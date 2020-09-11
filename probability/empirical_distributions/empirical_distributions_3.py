@@ -1,6 +1,6 @@
 import numpy as np
-from probability.distributions import Key
-from probability.distributions import MultiDiscreteRV
+from probability.empirical_distributions import Key
+from probability.empirical_distributions import MultiDiscreteRV
 
 
 class ConditionalDistribution:
@@ -41,7 +41,6 @@ class ConditionalDistribution:
         return (
             "Discrete conditional distribution \n"
             f"conditioned on: {self.conditional_rvs.names}\n"
-            f"conditioned levels: {self.conditional_rvs.levels}\n"
             f"random variables:'{self.names}'\n"
             f"levels: {self.rvs}"
         )
@@ -119,5 +118,4 @@ class ConditionalDistribution:
             f", rvs: {self.rvs.names})"
         )
 
-    def __repr__(self):
-        return self.__str__()
+    __repr__ = __str__

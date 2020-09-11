@@ -43,8 +43,13 @@
    "execution_count": 1,
    "metadata": {
     "ExecuteTime": {
+<<<<<<< HEAD
+     "end_time": "2020-09-11T09:59:18.614705Z",
+     "start_time": "2020-09-11T09:59:17.918812Z"
+=======
      "end_time": "2020-09-29T22:23:57.125268Z",
      "start_time": "2020-09-29T22:23:56.521460Z"
+>>>>>>> [feature] Add moment methods and Inference module
     },
     "scrolled": true
    },
@@ -87,8 +92,13 @@
    "execution_count": 2,
    "metadata": {
     "ExecuteTime": {
+<<<<<<< HEAD
+     "end_time": "2020-09-11T09:59:22.067644Z",
+     "start_time": "2020-09-11T09:59:22.006958Z"
+=======
      "end_time": "2020-09-29T22:24:03.210119Z",
      "start_time": "2020-09-29T22:24:03.143922Z"
+>>>>>>> [feature] Add moment methods and Inference module
     }
    },
    "outputs": [],
@@ -125,8 +135,13 @@
    "execution_count": 3,
    "metadata": {
     "ExecuteTime": {
+<<<<<<< HEAD
+     "end_time": "2020-09-11T09:59:23.386089Z",
+     "start_time": "2020-09-11T09:59:23.378589Z"
+=======
      "end_time": "2020-09-29T22:24:06.822073Z",
      "start_time": "2020-09-29T22:24:06.812783Z"
+>>>>>>> [feature] Add moment methods and Inference module
     }
    },
    "outputs": [
@@ -136,12 +151,21 @@
      "text": [
       "Discrete distribution \n",
       "random variables:'['age_gt_60' 'air' 'airBoneGap' 'ar_c' 'ar_u' 'bone']'\n",
+<<<<<<< HEAD
+      "levels: 'age_gt_60': {'t', 'f'}\n",
+      "'air': {'moderate', 'profound', 'severe', 'mild', 'normal'}\n",
+      "'airBoneGap': {'t', 'f'}\n",
+      "'ar_c': {'N/A', 'normal', 'absent', 'elevated'}\n",
+      "'ar_u': {'N/A', 'normal', 'absent', 'elevated'}\n",
+      "'bone': {'moderate', 'mild', 'N/A', 'unmeasured', 'normal'}\n",
+=======
       "levels: 'age_gt_60'\n",
       "'air'\n",
       "'airBoneGap'\n",
       "'ar_c'\n",
       "'ar_u'\n",
       "'bone'\n",
+>>>>>>> [feature] Add moment methods and Inference module
       "\n",
       "total:200\n",
       "normalised:False\n",
@@ -165,14 +189,96 @@
    "execution_count": 4,
    "metadata": {
     "ExecuteTime": {
+<<<<<<< HEAD
+     "end_time": "2020-09-11T09:59:25.064790Z",
+     "start_time": "2020-09-11T09:59:25.048063Z"
+=======
      "end_time": "2020-09-29T22:24:08.727440Z",
      "start_time": "2020-09-29T22:24:08.710116Z"
+>>>>>>> [feature] Add moment methods and Inference module
     }
    },
    "outputs": [
     {
      "data": {
       "text/markdown": [
+<<<<<<< HEAD
+       "|age_gt_60|air      |airBoneGap|ar_c     |ar_u     |bone      |title\n",
+       "|---------|---------|----------|---------|---------|----------|-----------\n",
+       "|        f|     mild|         f|   absent|   absent|      mild|0.02       |\n",
+       "|        f|     mild|         f|   absent|   absent|    normal|0.01       |\n",
+       "|        f|     mild|         f|   absent| elevated|      mild|0.005      |\n",
+       "|        f|     mild|         f|   absent|   normal|       N/A|0.005      |\n",
+       "|        f|     mild|         f|   absent|   normal|      mild|0.005      |\n",
+       "|        f|     mild|         f| elevated| elevated|       N/A|0.005      |\n",
+       "|        f|     mild|         f| elevated| elevated|      mild|0.01       |\n",
+       "|        f|     mild|         f| elevated|   normal|       N/A|0.005      |\n",
+       "|        f|     mild|         f| elevated|   normal|      mild|0.03       |\n",
+       "|        f|     mild|         f| elevated|   normal|unmeasured|0.01       |\n",
+       "|        f|     mild|         f|   normal| elevated|      mild|0.005      |\n",
+       "|        f|     mild|         f|   normal| elevated|unmeasured|0.005      |\n",
+       "|        f|     mild|         f|   normal|   normal|       N/A|0.055      |\n",
+       "|        f|     mild|         f|   normal|   normal|      mild|0.035      |\n",
+       "|        f|     mild|         f|   normal|   normal|unmeasured|0.005      |\n",
+       "|        f|     mild|         t|   absent|   absent|       N/A|0.005      |\n",
+       "|        f|     mild|         t|   absent|   absent|      mild|0.01       |\n",
+       "|        f|     mild|         t|   absent|   absent|    normal|0.015      |\n",
+       "|        f|     mild|         t|   absent| elevated|    normal|0.005      |\n",
+       "|        f| moderate|         f|   absent|   absent|  moderate|0.005      |\n",
+       "|        f| moderate|         f| elevated| elevated|       N/A|0.005      |\n",
+       "|        f| moderate|         f|   normal|   normal|       N/A|0.005      |\n",
+       "|        f| moderate|         t|   absent|   absent|      mild|0.025      |\n",
+       "|        f| moderate|         t|   absent|   absent|    normal|0.01       |\n",
+       "|        f|   normal|         f|   absent|   absent|    normal|0.005      |\n",
+       "|        f|   normal|         f|   absent| elevated|       N/A|0.005      |\n",
+       "|        f|   normal|         f|   absent| elevated|    normal|0.02       |\n",
+       "|        f|   normal|         f|   absent|   normal|    normal|0.02       |\n",
+       "|        f|   normal|         f| elevated|   absent|       N/A|0.005      |\n",
+       "|        f|   normal|         f| elevated| elevated|       N/A|0.005      |\n",
+       "|        f|   normal|         f| elevated| elevated|    normal|0.01       |\n",
+       "|        f|   normal|         f| elevated|   normal|       N/A|0.015      |\n",
+       "|        f|   normal|         f| elevated|   normal|      mild|0.005      |\n",
+       "|        f|   normal|         f|   normal| elevated|       N/A|0.03       |\n",
+       "|        f|   normal|         f|   normal| elevated|    normal|0.01       |\n",
+       "|        f|   normal|         f|   normal| elevated|unmeasured|0.005      |\n",
+       "|        f|   normal|         f|   normal|   normal|       N/A|0.065      |\n",
+       "|        f|   normal|         f|   normal|   normal|    normal|0.03       |\n",
+       "|        f|   normal|         f|   normal|   normal|unmeasured|0.055      |\n",
+       "|        f| profound|         f|      N/A|      N/A|       N/A|0.005      |\n",
+       "|        f|   severe|         f|      N/A|      N/A|       N/A|0.005      |\n",
+       "|        f|   severe|         f|   normal|   normal|  moderate|0.005      |\n",
+       "|        f|   severe|         t|   absent|   absent|      mild|0.01       |\n",
+       "|        f|   severe|         t|   absent|   absent|    normal|0.015      |\n",
+       "|        t|     mild|         f|   absent|      N/A|       N/A|0.005      |\n",
+       "|        t|     mild|         f|   absent|   absent|      mild|0.015      |\n",
+       "|        t|     mild|         f|   absent| elevated|      mild|0.005      |\n",
+       "|        t|     mild|         f|   absent|   normal|      mild|0.01       |\n",
+       "|        t|     mild|         f| elevated|   absent|      mild|0.005      |\n",
+       "|        t|     mild|         f| elevated| elevated|       N/A|0.005      |\n",
+       "|        t|     mild|         f|   normal|   absent|      mild|0.015      |\n",
+       "|        t|     mild|         f|   normal| elevated|       N/A|0.005      |\n",
+       "|        t|     mild|         f|   normal| elevated|      mild|0.015      |\n",
+       "|        t|     mild|         f|   normal| elevated|unmeasured|0.01       |\n",
+       "|        t|     mild|         f|   normal|   normal|       N/A|0.09       |\n",
+       "|        t|     mild|         f|   normal|   normal|      mild|0.03       |\n",
+       "|        t|     mild|         f|   normal|   normal|unmeasured|0.04       |\n",
+       "|        t|     mild|         t|      N/A|   absent|      mild|0.01       |\n",
+       "|        t| moderate|         f| elevated|   normal|unmeasured|0.005      |\n",
+       "|        t| moderate|         f|   normal| elevated|       N/A|0.005      |\n",
+       "|        t| moderate|         f|   normal|   normal|       N/A|0.01       |\n",
+       "|        t| moderate|         f|   normal|   normal|  moderate|0.005      |\n",
+       "|        t| moderate|         t| elevated|   absent|      mild|0.005      |\n",
+       "|        t| moderate|         t|   normal|   absent|      mild|0.005      |\n",
+       "|        t|   normal|         f|   absent|   absent|    normal|0.015      |\n",
+       "|        t|   normal|         f|   absent|   normal|    normal|0.005      |\n",
+       "|        t|   normal|         f| elevated|   normal|       N/A|0.015      |\n",
+       "|        t|   normal|         f| elevated|   normal|    normal|0.005      |\n",
+       "|        t|   normal|         f|   normal| elevated|    normal|0.005      |\n",
+       "|        t|   normal|         f|   normal|   normal|       N/A|0.015      |\n",
+       "|        t|   normal|         f|   normal|   normal|    normal|0.005      |\n",
+       "|        t|   normal|         f|   normal|   normal|unmeasured|0.015      |\n",
+       "|        t|   severe|         f|   normal|   normal|       N/A|0.005      |\n"
+=======
        "|age_gt_60|air     |airBoneGap|ar_c  |ar_u  |bone  |title\n",
        "|------|--------|------|------|------|------|--\n",
        "|     f|    mild|     f|absent|absent|  mild|0.02|\n",
@@ -248,6 +354,7 @@
        "|     t|  normal|     f|normal|normal|normal|0.005|\n",
        "|     t|  normal|     f|normal|normal|unmeasured|0.015|\n",
        "|     t|  severe|     f|normal|normal|   N/A|0.005|\n"
+>>>>>>> [feature] Add moment methods and Inference module
       ],
       "text/plain": [
        "<IPython.core.display.Markdown object>"
@@ -276,8 +383,13 @@
    "execution_count": 5,
    "metadata": {
     "ExecuteTime": {
+<<<<<<< HEAD
+     "end_time": "2020-09-11T09:59:31.684530Z",
+     "start_time": "2020-09-11T09:59:31.675020Z"
+=======
      "end_time": "2020-09-29T22:24:13.161785Z",
      "start_time": "2020-09-29T22:24:13.152494Z"
+>>>>>>> [feature] Add moment methods and Inference module
     },
     "tags": []
    },
@@ -289,12 +401,21 @@
       "Random variables: ['age_gt_60' 'air' 'airBoneGap' 'ar_c' 'ar_u' 'bone']\n",
       "\n",
       "Details: \n",
+<<<<<<< HEAD
+      "'age_gt_60': {'t', 'f'}\n",
+      "'air': {'moderate', 'profound', 'severe', 'mild', 'normal'}\n",
+      "'airBoneGap': {'t', 'f'}\n",
+      "'ar_c': {'N/A', 'normal', 'absent', 'elevated'}\n",
+      "'ar_u': {'N/A', 'normal', 'absent', 'elevated'}\n",
+      "'bone': {'moderate', 'mild', 'N/A', 'unmeasured', 'normal'}\n",
+=======
       "'age_gt_60'\n",
       "'air'\n",
       "'airBoneGap'\n",
       "'ar_c'\n",
       "'ar_u'\n",
       "'bone'\n",
+>>>>>>> [feature] Add moment methods and Inference module
       "\n"
      ]
     }
@@ -316,8 +437,13 @@
    "execution_count": 6,
    "metadata": {
     "ExecuteTime": {
+<<<<<<< HEAD
+     "end_time": "2020-09-11T09:59:33.130692Z",
+     "start_time": "2020-09-11T09:59:33.103707Z"
+=======
      "end_time": "2020-09-29T22:24:15.986442Z",
      "start_time": "2020-09-29T22:24:15.973748Z"
+>>>>>>> [feature] Add moment methods and Inference module
     },
     "tags": []
    },
@@ -350,8 +476,13 @@
    "execution_count": 7,
    "metadata": {
     "ExecuteTime": {
+<<<<<<< HEAD
+     "end_time": "2020-09-11T09:59:35.643453Z",
+     "start_time": "2020-09-11T09:59:35.629343Z"
+=======
      "end_time": "2020-09-29T22:24:20.161675Z",
      "start_time": "2020-09-29T22:24:20.152747Z"
+>>>>>>> [feature] Add moment methods and Inference module
     }
    },
    "outputs": [
@@ -398,8 +529,13 @@
    "execution_count": 8,
    "metadata": {
     "ExecuteTime": {
+<<<<<<< HEAD
+     "end_time": "2020-09-11T09:59:37.969920Z",
+     "start_time": "2020-09-11T09:59:37.962406Z"
+=======
      "end_time": "2020-09-29T22:24:22.666281Z",
      "start_time": "2020-09-29T22:24:22.647815Z"
+>>>>>>> [feature] Add moment methods and Inference module
     }
    },
    "outputs": [
@@ -447,8 +583,13 @@
    "execution_count": 9,
    "metadata": {
     "ExecuteTime": {
+<<<<<<< HEAD
+     "end_time": "2020-09-11T09:59:40.768044Z",
+     "start_time": "2020-09-11T09:59:40.754578Z"
+=======
      "end_time": "2020-09-29T22:24:29.581771Z",
      "start_time": "2020-09-29T22:24:29.557452Z"
+>>>>>>> [feature] Add moment methods and Inference module
     }
    },
    "outputs": [
@@ -497,8 +638,13 @@
    "execution_count": 10,
    "metadata": {
     "ExecuteTime": {
+<<<<<<< HEAD
+     "end_time": "2020-09-11T09:59:49.655336Z",
+     "start_time": "2020-09-11T09:59:49.645980Z"
+=======
      "end_time": "2020-09-29T22:24:31.286382Z",
      "start_time": "2020-09-29T22:24:31.280440Z"
+>>>>>>> [feature] Add moment methods and Inference module
     }
    },
    "outputs": [
@@ -508,7 +654,11 @@
      "text": [
       "Discrete distribution \n",
       "random variables:'['air']'\n",
+<<<<<<< HEAD
+      "levels: 'air': {'profound', 'moderate', 'severe', 'mild', 'normal'}\n",
+=======
       "levels: 'air'\n",
+>>>>>>> [feature] Add moment methods and Inference module
       "\n",
       "total:200\n",
       "normalised:False\n",
@@ -547,8 +697,13 @@
    "execution_count": 11,
    "metadata": {
     "ExecuteTime": {
+<<<<<<< HEAD
+     "end_time": "2020-09-11T09:59:53.564577Z",
+     "start_time": "2020-09-11T09:59:53.385949Z"
+=======
      "end_time": "2020-09-29T22:24:36.863119Z",
      "start_time": "2020-09-29T22:24:36.717867Z"
+>>>>>>> [feature] Add moment methods and Inference module
     }
    },
    "outputs": [
@@ -586,8 +741,13 @@
    "execution_count": 12,
    "metadata": {
     "ExecuteTime": {
+<<<<<<< HEAD
+     "end_time": "2020-09-11T10:00:00.881394Z",
+     "start_time": "2020-09-11T10:00:00.863609Z"
+=======
      "end_time": "2020-09-29T22:24:41.486424Z",
      "start_time": "2020-09-29T22:24:41.466860Z"
+>>>>>>> [feature] Add moment methods and Inference module
     }
    },
    "outputs": [
@@ -597,8 +757,13 @@
      "text": [
       "Discrete distribution \n",
       "random variables:'['air' 'bone']'\n",
+<<<<<<< HEAD
+      "levels: 'air': {'moderate', 'profound', 'severe', 'mild', 'normal'}\n",
+      "'bone': {'moderate', 'mild', 'N/A', 'unmeasured', 'normal'}\n",
+=======
       "levels: 'air'\n",
       "'bone'\n",
+>>>>>>> [feature] Add moment methods and Inference module
       "\n",
       "total:200\n",
       "normalised:False\n",
@@ -717,8 +882,13 @@
    "execution_count": 13,
    "metadata": {
     "ExecuteTime": {
+<<<<<<< HEAD
+     "end_time": "2020-09-11T10:00:12.424509Z",
+     "start_time": "2020-09-11T10:00:12.403363Z"
+=======
      "end_time": "2020-09-29T22:24:53.414148Z",
      "start_time": "2020-09-29T22:24:53.399266Z"
+>>>>>>> [feature] Add moment methods and Inference module
     }
    },
    "outputs": [
@@ -728,8 +898,16 @@
      "text": [
       "Discrete conditional distribution \n",
       "conditioned on: ['age_gt_60' 'airBoneGap' 'ar_c' 'ar_u' 'bone']\n",
+<<<<<<< HEAD
+      "conditioned levels: [{'t', 'f'} {'t', 'f'} {'absent', 'elevated', 'N/A', 'normal'}\n",
+      " {'absent', 'elevated', 'N/A', 'normal'}\n",
+      " {'moderate', 'mild', 'N/A', 'unmeasured', 'normal'}]\n",
+      "random variables:'['air']'\n",
+      "levels: 'air': {'profound', 'severe'}\n",
+=======
       "random variables:'['air']'\n",
       "levels: 'air'\n",
+>>>>>>> [feature] Add moment methods and Inference module
       "\n"
      ]
     }
@@ -744,8 +922,13 @@
    "execution_count": 14,
    "metadata": {
     "ExecuteTime": {
+<<<<<<< HEAD
+     "end_time": "2020-09-11T10:00:17.589808Z",
+     "start_time": "2020-09-11T10:00:17.409639Z"
+=======
      "end_time": "2020-09-29T22:25:01.185279Z",
      "start_time": "2020-09-29T22:25:00.989206Z"
+>>>>>>> [feature] Add moment methods and Inference module
     }
    },
    "outputs": [

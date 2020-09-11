@@ -4,35 +4,14 @@ from collections import Counter
 import numpy as np
 
 
-class Key:
-    def __init__(self, value):
+class Key(tuple):
+    def __new__(cls, value):
         try:
-            if isinstance(value, str):
-                self.value = (value,)
-            else:
-                self.value = tuple(value)
-            self.is_tuple = True
+            if isinstance(value, str) or isinstance(value, Number):
+                return tuple.__new__(cls, (value,))
+            return tuple.__new__(cls, value)
         except TypeError:  # e.g. key is int
-            self.value = value
-            self.is_tuple = False
-
-    def __getitem__(self, key):
-        if self.is_tuple:
-            return self.value[key]
-        else:
-            return self.value
-
-    def __mul__(self, right):
-        if self.is_tuple and right.is_tuple:
-            return self.value + right.value
-
-        if self.is_tuple:
-            return self.value + (right.value,)
-
-        if right.is_tuple:
-            return (self.value,) + right.value
-
-        return (self.value, right.value)
+            return tuple.__new__(cls, (value,))
 
 
 class RandomVariable(ABC):
@@ -92,8 +71,7 @@ class DiscreteRV(RandomVariable):
     def __str__(self):
         return f"'{self.name}'"
 
-    def __repr__(self):
-        return self.__str__()
+    __repr__ = __str__
 
 
 class MultiDiscreteRV(RandomVariable):
@@ -121,13 +99,8 @@ class MultiDiscreteRV(RandomVariable):
             ValueError: When the length of tuples in 'factors' are not
                         equal.
         """
-        # To check the consistency of the tuples, save
-        # the length of the first one and check all the others
-        # first_row = next(iter(factors))
-        if isinstance(first_row, tuple):
-            rv_len = len(first_row)
-        else:
-            rv_len = 1
+        first_row_key = Key(first_row)
+        rv_len = len(first_row_key)
         # Check names, if it is None, create one equal to length
         # of  random variables
         if names is None:
@@ -140,7 +113,7 @@ class MultiDiscreteRV(RandomVariable):
         else:
             self.names = np.array(names)
         # Store the DiscreteRV as a dictionary
-        if isinstance(first_row, tuple):
+        if rv_len > 1:
             self.multi_rvs = {
                 name: DiscreteRV(name, item)
                 for name, item in zip(self.names, first_row)
@@ -232,8 +205,7 @@ class MultiDiscreteRV(RandomVariable):
     def __str__(self):
         return "".join([f"{s}\n" for s in self.multi_rvs.values()])
 
-    def __repr__(self):
-        return self.__str__()
+    __repr__ = __str__
 
     def __contains__(self, name):
         """Check the name of the random variable.
@@ -305,7 +277,7 @@ class Distribution(ABC):
             # Therefore, the levels of the RV can be
             # found by iterating over each tuple's item
             # Convert each features line to tuple
-            tuples = (tuple(row) for row in self.keys())
+            tuples = (Key(row) for row in self.keys())
             try:
                 first_row = next(tuples)
             except StopIteration:  # Empty rows

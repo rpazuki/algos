@@ -4,12 +4,18 @@ from itertools import product
 from operator import itemgetter
 from multiprocessing import Pool
 import numpy as np
-from probability.distributions import Key
-from probability.distributions import DiscreteRV
-from probability.distributions import MultiDiscreteRV
-from probability.distributions import Distribution
+from probability.empirical_distributions import Key
+from probability.empirical_distributions import DiscreteRV
+from probability.empirical_distributions import MultiDiscreteRV
+from probability.empirical_distributions import Distribution
 
-from probability.distributions.distributions_3 import ConditionalDistribution
+from probability.empirical_distributions.empirical_distributions_3 import (
+    ConditionalDistribution,
+)
+
+
+def to_dist(iterable):
+    return {(k1, k2): v1 * v2 for (k1, v1), (k2, v2) in iterable}
 
 
 def to_dist(iterable):
@@ -87,7 +93,7 @@ class FrequencyTable(Distribution):
         # be a DiscreteDistribution
         return DiscreteDistribution(
             {
-                Key(k1) * Key(k2): v1 * v2
+                Key(k1) + Key(k2): v1 * v2
                 for k1, v1 in self.items()
                 for k2, v2 in right.items()
             },
@@ -250,8 +256,7 @@ class FrequencyTable(Distribution):
     def __str__(self):
         return f"Frequency table (rv:'{self.discrete_rv.name}', total:{self.total})"
 
-    def __repr__(self):
-        return self.__str__()
+    __repr__ = __str__
 
     def __mul__(self, that):
         return self.product(that)
@@ -320,7 +325,7 @@ class DiscreteDistribution(Distribution):
             )
         # Convert rows to element, before calling
         # the construct
-        return cls(samples=[tuple(row) for row in samples], names=names)
+        return cls(samples=[Key(row) for row in samples], names=names)
 
     def marginal(self, *args):
         """Marginalize the distribution over a set of random variables.
@@ -542,7 +547,7 @@ class DiscreteDistribution(Distribution):
             names = np.r_[self.names, right.names]
             return DiscreteDistribution(
                 {
-                    Key(k1) * Key(k2): v1 * v2
+                    Key(k1) + Key(k2): v1 * v2
                     for k1, v1 in self.items()
                     for k2, v2 in right.items()
                 },
@@ -604,7 +609,7 @@ class DiscreteDistribution(Distribution):
                 for right_comp, right_value in right_lookup[comm]:
                     # prodcut_dict values must be multiplied.
                     # prodcut_dict keys are the combination: (left, right_compliment).
-                    prodcut_dict[tuple(left_key) + tuple(right_comp)] = (
+                    prodcut_dict[Key(left_key) + Key(right_comp)] = (
                         left_value * right_value
                     )
         # names are the combination of [left_names, right_compelements_names]
@@ -768,8 +773,7 @@ class DiscreteDistribution(Distribution):
             f" normalised:{np.abs(self.total -1) <= 1e-16})"
         )
 
-    def __repr__(self):
-        return self.__str__()
+    __repr__ = __str__
 
     def __mul__(self, right):
         if isinstance(right, Distribution):

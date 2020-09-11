@@ -1,5 +1,5 @@
 import pytest
-from probability.distributions import DiscreteDistribution
+from probability.empirical_distributions import DiscreteDistribution
 from tests.helpers import compare
 
 

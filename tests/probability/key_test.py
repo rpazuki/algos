@@ -1,4 +1,4 @@
-from probability.empirical_distributions import Key
+from probability import Key
 
 
 def test_conversion_key():

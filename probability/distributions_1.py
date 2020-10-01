@@ -99,18 +99,8 @@ class MultiDiscreteRV(RandomVariable):
             ValueError: When the length of tuples in 'factors' are not
                         equal.
         """
-<<<<<<< HEAD:probability/distributions/distributions_1.py
-        # To check the consistency of the tuples, save
-        # the length of the first one and check all the others
-        # first_row = next(iter(factors))
-        if isinstance(first_row, tuple):
-            rv_len = len(first_row)
-        else:
-            rv_len = 1
-=======
         first_row_key = Key(first_row)
         rv_len = len(first_row_key)
->>>>>>> [feature] Add moment methods and Inference module:probability/empirical_distributions/empirical_distributions_1.py
         # Check names, if it is None, create one equal to length
         # of  random variables
         if names is None:
@@ -123,11 +113,7 @@ class MultiDiscreteRV(RandomVariable):
         else:
             self.names = np.array(names)
         # Store the DiscreteRV as a dictionary
-<<<<<<< HEAD:probability/distributions/distributions_1.py
-        if isinstance(first_row, tuple):
-=======
         if rv_len > 1:
->>>>>>> [feature] Add moment methods and Inference module:probability/empirical_distributions/empirical_distributions_1.py
             self.multi_rvs = {
                 name: DiscreteRV(name, item)
                 for name, item in zip(self.names, first_row)
@@ -291,11 +277,7 @@ class Distribution(ABC):
             # Therefore, the levels of the RV can be
             # found by iterating over each tuple's item
             # Convert each features line to tuple
-<<<<<<< HEAD:probability/distributions/distributions_1.py
-            tuples = (tuple(row) for row in self.keys())
-=======
             tuples = (Key(row) for row in self.keys())
->>>>>>> [feature] Add moment methods and Inference module:probability/empirical_distributions/empirical_distributions_1.py
             try:
                 first_row = next(tuples)
             except StopIteration:  # Empty rows

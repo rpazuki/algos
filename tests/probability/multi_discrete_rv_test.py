@@ -1,9 +1,5 @@
 import pytest
-<<<<<<< HEAD:tests/probability/multi_discrete_rv_test.py
-from probability.distributions import MultiDiscreteRV
-=======
-from probability.empirical_distributions import MultiDiscreteRV
->>>>>>> [feature] Add moment methods and Inference module:tests/probability/empirical_distributions/multi_discrete_rv_test.py
+from probability import MultiDiscreteRV
 
 
 def test_len_multidiscreterv():
@@ -17,13 +13,10 @@ def test_len_multidiscreterv():
     assert random_v.size == 3
 
     random_v = MultiDiscreteRV((1, 2, 4, 2), ["X1", "X2", "X3", "X4"])
-<<<<<<< HEAD:tests/probability/multi_discrete_rv_test.py
-=======
     assert len(random_v) == 4
     assert random_v.size == 4
 
     random_v = MultiDiscreteRV([1, 2, 3, 4], ["X1", "X2", "X3", "X4"])
->>>>>>> [feature] Add moment methods and Inference module:tests/probability/empirical_distributions/multi_discrete_rv_test.py
     assert len(random_v) == 4
     assert random_v.size == 4
 

@@ -18,17 +18,13 @@ def to_dist(iterable):
     return {(k1, k2): v1 * v2 for (k1, v1), (k2, v2) in iterable}
 
 
-def to_dist(iterable):
-    return {(k1, k2): v1 * v2 for (k1, v1), (k2, v2) in iterable}
-
-
 class FrequencyTable(Distribution):
     """Provides a frequency table from the number of occurenc of
     observed items as dictionary of (key:frequency) or an iterator
     of observed sample.
     """
 
-    def __init__(self, samples, name="X1", check_keys_consistencies=True):
+    def __init__(self, samples, name="X1", consistencies=True):
         """Construct a FrequencyTable from the number of occurenc in samples.
 
         Args:
@@ -37,7 +33,7 @@ class FrequencyTable(Distribution):
                 or a dictionary of (key:frequency).
             name (str):
                 Name of the random variable.
-            check_keys_consistencies (bool):
+            consistencies (bool):
                 If True, the consistency of the keys (length
                 and type) will be checked.
                 It is better to be set 'False' for larger datasets
@@ -57,7 +53,7 @@ class FrequencyTable(Distribution):
         self.discrete_rv = DiscreteRV(name, first_row)
         self.name = name
         #
-        if check_keys_consistencies:
+        if consistencies:
             self._check_keys_consistencies_()
 
     def product(self, right):
@@ -272,7 +268,7 @@ class DiscreteDistribution(Distribution):
     in the tuple as a random variable and find its levels.
     """
 
-    def __init__(self, samples, names=None, check_keys_consistencies=True):
+    def __init__(self, samples, names=None, consistencies=True):
         """Construct a DiscreteDistribution from the number of occurenc in samples.
 
         Args:
@@ -283,7 +279,7 @@ class DiscreteDistribution(Distribution):
                 List of names of the random variables.
                 If it is not provided, it creates as 'Xn'.
                 Defaults to None.
-            check_keys_consistencies (bool):
+            consistencies (bool):
                 If True, the consistency of the keys (length
                 and type) will be checked.
                 It is better to be set 'False' for larger datasets
@@ -295,7 +291,7 @@ class DiscreteDistribution(Distribution):
         self.rvs = MultiDiscreteRV(first_row, names)
         self.names = self.rvs.names
         #
-        if check_keys_consistencies:
+        if consistencies:
             self._check_keys_consistencies_()
 
     @classmethod

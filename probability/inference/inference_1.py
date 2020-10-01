@@ -1,34 +1,25 @@
 from probability.empirical_distributions import FrequencyTable
 
 
-class Binomial:
-    def __init__(self, empirical_dist, level=None):
-        if not isinstance(empirical_dist, FrequencyTable):
+class Binomial(FrequencyTable):
+    def __init__(self, samples, level=None, name="X1", check_keys_consistencies=True):
+        super().__init__(samples, name, check_keys_consistencies)
+        levels = self.levels()
+        if len(levels) != 2:
             raise ValueError(
-                "'empirical_dist' argument must be a FrequencyTable class."
+                f"Binomial distribution has two levels, {len(levels)} is provided."
             )
-        self.levels = empirical_dist.levels()
-        if len(self.levels) != 2:
-            raise ValueError(
-                f"Binomial distribution has two levels, {len(self.levels)} is provided."
-            )
-        self.e_dist = empirical_dist
         #
         if level is None:
-            self.theta_hat = self.e_dist.probability(self.levels[0])
+            self.theta_hat = self.probability(levels[0])
         else:
-            self.theta_hat = self.e_dist.probability(level)
+            self.theta_hat = self.probability(level)
 
 
-class Multinomial:
-    def __init__(self, empirical_dist):
-        if not isinstance(empirical_dist, FrequencyTable):
-            raise ValueError(
-                "'empirical_dist' argument must be a FrequencyTable class."
-            )
-        self.e_dist = empirical_dist
+class Multinomial(FrequencyTable):
+    def __init__(self, samples, name="X1", check_keys_consistencies=True):
+        super().__init__(samples, name, check_keys_consistencies)
         #
-
         self.theta_hat = {
-            level: self.e_dist.probability(level) for i, level in enumerate(self.e_dist)
+            level: self.probability(level) for i, level in enumerate(self.levels())
         }

@@ -595,20 +595,14 @@ def test_avg_frequency_table():
 
 def test_keys_consistencies_frequency_table():
     with pytest.raises(ValueError):
-        FrequencyTable([1, 2, 3, "A"], ["X1"], check_keys_consistencies=True)
+        FrequencyTable([1, 2, 3, "A"], ["X1"], consistencies=True)
 
     with pytest.raises(ValueError):
-        FrequencyTable(["A", 1, 2, 3], ["X1"], check_keys_consistencies=True)
+        FrequencyTable(["A", 1, 2, 3], ["X1"], consistencies=True)
 
     with pytest.raises(ValueError):
-        FrequencyTable(
-            [(1,), (2,), (3,), (4, 5)], ["X1"], check_keys_consistencies=True
-        )
+        FrequencyTable([(1,), (2,), (3,), (4, 5)], ["X1"], consistencies=True)
     with pytest.raises(ValueError):
-        FrequencyTable(
-            [(4, 5), (1,), (2,), (3,)], ["X1"], check_keys_consistencies=True
-        )
+        FrequencyTable([(4, 5), (1,), (2,), (3,)], ["X1"], consistencies=True)
     with pytest.raises(ValueError):
-        FrequencyTable(
-            [(4, 5), (1, 3), (2, 3, 4), (3, 7)], ["X1"], check_keys_consistencies=True
-        )
+        FrequencyTable([(4, 5), (1, 3), (2, 3, 4), (3, 7)], ["X1"], consistencies=True)

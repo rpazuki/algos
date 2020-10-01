@@ -7,106 +7,102 @@ from tests.helpers import compare
 
 def test_keys_consistencies_discrete_distribution():
     with pytest.raises(ValueError):
-        DiscreteDistribution([1, 2, 3, "A"], ["X1"], check_keys_consistencies=True)
+        DiscreteDistribution([1, 2, 3, "A"], ["X1"], consistencies=True)
 
     with pytest.raises(ValueError):
-        DiscreteDistribution(["A", 1, 2, 3], ["X1"], check_keys_consistencies=True)
+        DiscreteDistribution(["A", 1, 2, 3], ["X1"], consistencies=True)
 
     with pytest.raises(ValueError):
-        DiscreteDistribution(
-            [(1,), (2,), (3,), (4, 5)], ["X1"], check_keys_consistencies=True
-        )
+        DiscreteDistribution([(1,), (2,), (3,), (4, 5)], ["X1"], consistencies=True)
+    with pytest.raises(ValueError):
+        DiscreteDistribution([(4, 5), (1,), (2,), (3,)], ["X1"], consistencies=True)
     with pytest.raises(ValueError):
         DiscreteDistribution(
-            [(4, 5), (1,), (2,), (3,)], ["X1"], check_keys_consistencies=True
-        )
-    with pytest.raises(ValueError):
-        DiscreteDistribution(
-            [(4, 5), (1, 3), (2, 3, 4), (3, 7)], ["X1"], check_keys_consistencies=True
+            [(4, 5), (1, 3), (2, 3, 4), (3, 7)], ["X1"], consistencies=True
         )
     with pytest.raises(ValueError):
         DiscreteDistribution(
             [("a", "1", "w1"), ("b", 2, "w1"), ("c", 3, "w2"), ("d", 4, "w2")],
             ["X1", "X2", "X3"],
-            check_keys_consistencies=True,
+            consistencies=True,
         )
     with pytest.raises(ValueError):
         DiscreteDistribution(
             [("a", 1, "w1"), ("b", "2", "w1"), ("c", 3, "w2"), ("d", 4, "w2")],
             ["X1", "X2", "X3"],
-            check_keys_consistencies=True,
+            consistencies=True,
         )
     with pytest.raises(ValueError):
         DiscreteDistribution(
             [("a", 1, "w1"), ("b", 2, "w1"), ("c", 3, "w2"), ("d", "4", "w2")],
             ["X1", "X2", "X3"],
-            check_keys_consistencies=True,
+            consistencies=True,
         )
     with pytest.raises(ValueError):
         DiscreteDistribution(
             [("a", 1, "w1"), ("b", 2), ("c", 3, "w2"), ("d", "4", "w2")],
             ["X1", "X2", "X3"],
-            check_keys_consistencies=True,
+            consistencies=True,
         )
     with pytest.raises(ValueError):
         DiscreteDistribution(
             [(1, "w1"), ("b", 2, "w1"), ("c", 3, "w2"), ("d", "4", "w2")],
             ["X1", "X2", "X3"],
-            check_keys_consistencies=True,
+            consistencies=True,
         )
     with pytest.raises(ValueError):
         DiscreteDistribution(
             [("a", None, "w1"), ("b", 2, "w1"), ("c", 3, "w2"), ("d", "4", "w2")],
             ["X1", "X2", "X3"],
-            check_keys_consistencies=True,
+            consistencies=True,
         )
     with pytest.raises(ValueError):
         DiscreteDistribution(
             [("a", 1, "w1", None), ("b", 2, "w1", 2), ("c", 3, "w2", 1)],
             ["X1", "X2", "X3", "X4"],
-            check_keys_consistencies=True,
+            consistencies=True,
         )
     with pytest.raises(ValueError):
         DiscreteDistribution(
             [("a", 1, "w1", 4), ("b", None, "w1", 2), ("c", 3, "w2", 1)],
             ["X1", "X2", "X3", "X4"],
-            check_keys_consistencies=True,
+            consistencies=True,
         )
     with pytest.raises(ValueError):
         DiscreteDistribution(
             [("a", 1, "w1", "4"), ("b", 2, "w1", 2), ("c", 3, "w2", 1)],
             ["X1", "X2", "X3", "X4"],
-            check_keys_consistencies=True,
+            consistencies=True,
         )
     with pytest.raises(ValueError):
         DiscreteDistribution(
             [("a", 1, 1, 4), ("b", 2, "w1", 2), ("c", 3, "w2", 1)],
             ["X1", "X2", "X3", "X4"],
-            check_keys_consistencies=True,
+            consistencies=True,
         )
     with pytest.raises(ValueError):
         DiscreteDistribution(
             [("a", 1, "w1", 4), ("b", "2", "w1", 2), ("c", 3, "w2", 1)],
             ["X1", "X2", "X3", "X4"],
-            check_keys_consistencies=True,
+            consistencies=True,
         )
     with pytest.raises(ValueError):
         DiscreteDistribution(
             [("a", 1, "w1", 4), (1, 2, "w1", 2), ("c", 3, "w2", 1)],
             ["X1", "X2", "X3", "X4"],
-            check_keys_consistencies=True,
+            consistencies=True,
         )
     with pytest.raises(ValueError):
         DiscreteDistribution(
             [("a", 1, "w1", 4), ("b", 2, "w1", 2), ("c", "3", "w2", "1")],
             ["X1", "X2", "X3", "X4"],
-            check_keys_consistencies=True,
+            consistencies=True,
         )
     with pytest.raises(ValueError):
         DiscreteDistribution(
             [("a", 1, "w1", 4), ("b", 2, 2), ("c", 3, "w2", 1)],
             ["X1", "X2", "X3", "X4"],
-            check_keys_consistencies=True,
+            consistencies=True,
         )
 
 

@@ -3,6 +3,7 @@ from pytest import approx
 import numpy as np
 from probability import Distribution
 from probability.empirical_distributions import FrequencyTable
+from probability.empirical_distributions import EmpiricalDistribution
 from tests.helpers import compare
 
 
@@ -468,7 +469,7 @@ def test_continouse_frequency_table():
         0.27922478,
     ]
     bins = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]
-    digitized = Distribution.digitize_bin(samples, bins)
+    digitized = EmpiricalDistribution.digitize_bin(samples, bins)
     dist = FrequencyTable(digitized)
     assert dist.total == 33
     assert dist[0.0] == 4
@@ -484,7 +485,7 @@ def test_continouse_frequency_table():
     assert dist[1.0] == 1
     assert dist.prob(X1=1.0) == 1 / 33
 
-    digitized = Distribution.digitize(samples, start=0, stop=1, num=11)
+    digitized = EmpiricalDistribution.digitize(samples, start=0, stop=1, num=11)
     dist = FrequencyTable(digitized)
     assert dist.total == 33
     assert dist[0.0] == 4
@@ -505,7 +506,7 @@ def test_continouse_level_frequency_table():
     samples = [15.23, 9.7, 13.78, -1, 999, 12.8, 2.5, 6.35, 14.3, 16.3]
     bins = [0, 10, 20]
     levels = ["low", "high"]
-    digitized = Distribution.digitize_bin(samples, bins, levels=levels)
+    digitized = EmpiricalDistribution.digitize_bin(samples, bins, levels=levels)
     dist = FrequencyTable(digitized)
     assert dist["less"] == 1
     assert dist.prob(X1="less") == 0.1
@@ -516,7 +517,9 @@ def test_continouse_level_frequency_table():
     assert dist["more"] == 1
     assert dist.prob(X1="more") == 0.1
 
-    digitized = Distribution.digitize(samples, start=0, stop=20, num=3, levels=levels)
+    digitized = EmpiricalDistribution.digitize(
+        samples, start=0, stop=20, num=3, levels=levels
+    )
     dist = FrequencyTable(digitized)
     assert dist["less"] == 1
     assert dist.prob(X1="less") == 0.1

@@ -27,7 +27,7 @@ class EmpiricalDistribution(Distribution):
         self.total = sum(self._counter.values())
 
     def _check_keys_consistencies_(self):
-        rv_len = self._get_random_variable_().size
+        rv_len = self.get_random_variable().size
 
         def compare_single_elements():
             try:
@@ -202,7 +202,7 @@ class EmpiricalDistribution(Distribution):
         return self.__getitem__(key) / self.total
 
     def freq(self, *args, **kwargs):
-        key = self._get_random_variable_().to_key(*args, **kwargs)
+        key = self.get_random_variable().to_key(*args, **kwargs)
         return self.frequency(key, normalised=False)
 
     def frequency(self, key, normalised=False):
@@ -271,7 +271,7 @@ class EmpiricalDistribution(Distribution):
         return self._counter.most_common(num)
 
     @abstractmethod
-    def _get_random_variable_(self):
+    def get_random_variable(self):
         pass
 
     @abstractmethod

@@ -220,7 +220,7 @@ class MultiDiscreteRV(RandomVariable):
 
 class Distribution(ABC):
     def prob(self, *args, **kwargs):
-        key = self._get_random_variable_().to_key(*args, **kwargs)
+        key = self.get_random_variable().to_key(*args, **kwargs)
         return self.probability(key)
 
     def __iter__(self):
@@ -249,14 +249,10 @@ class Distribution(ABC):
                 A 2D numpy array that the its last column
                 is the counts.
         """
-        if self._get_random_variable_().size == 1:
+        if self.get_random_variable().size == 1:
             return np.array([(k, v) for k, v in self.items()], dtype=np.object)
 
         return np.array([tuple(k) + (v,) for k, v in self.items()], dtype=np.object)
-
-    @abstractmethod
-    def normalise(self):
-        pass
 
     @abstractmethod
     def probability(self, key):
@@ -271,7 +267,7 @@ class Distribution(ABC):
         pass
 
     @abstractmethod
-    def _get_random_variable_(self):
+    def get_random_variable(self):
         pass
 
     @abstractmethod

@@ -151,7 +151,7 @@ class FrequencyTable(EmpiricalDistribution):
                 counter.update(next_dict)
             return DiscreteDistribution(counter, names)
 
-    def _get_random_variable_(self):
+    def get_random_variable(self):
         return self.discrete_rv
 
     def summary(self):
@@ -617,7 +617,7 @@ class DiscreteDistribution(EmpiricalDistribution):
         ]
         return DiscreteDistribution(prodcut_dict, combined_names)
 
-    def _get_random_variable_(self):
+    def get_random_variable(self):
         return self.rvs
 
     def _split_matrix_(self, array, indices=None):

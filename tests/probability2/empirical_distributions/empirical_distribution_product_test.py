@@ -1,8 +1,8 @@
 import pytest
 from pytest import approx
 import numpy as np
-from probability.empirical_distributions import DiscreteDistribution
-from probability.empirical_distributions import FrequencyTable
+from probability2.empirical_distributions import DiscreteDistribution
+from probability2.empirical_distributions import FrequencyTable
 from tests.helpers import compare
 
 sample_1 = {

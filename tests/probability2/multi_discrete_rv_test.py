@@ -1,5 +1,5 @@
 import pytest
-from probability import MultiDiscreteRV
+from probability2 import MultiDiscreteRV
 
 
 def test_len_multidiscreterv():

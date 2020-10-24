@@ -1,8 +1,8 @@
 from abc import abstractmethod
 from collections import Counter
 import numpy as np
-from probability import Key
-from probability import Distribution
+from probability2 import Key
+from probability2 import Distribution
 
 
 class EmpiricalDistribution(Distribution):

@@ -1,5 +1,5 @@
 import pytest
-from probability import DiscreteRV
+from probability2 import DiscreteRV
 
 
 def test_create_discreterv():

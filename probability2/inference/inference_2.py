@@ -1,4 +1,4 @@
-from probability.inference import Inferrer
+from probability2.inference import Inferrer
 
 
 class MultinomialMLEInferrer(Inferrer):

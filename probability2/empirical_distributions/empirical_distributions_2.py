@@ -4,14 +4,14 @@ from itertools import product
 from operator import itemgetter
 from multiprocessing import Pool
 import numpy as np
-from probability import Key
-from probability import DiscreteRV
-from probability import MultiDiscreteRV
-from probability import Distribution
+from probability2 import Key
+from probability2 import DiscreteRV
+from probability2 import MultiDiscreteRV
+from probability2 import Distribution
 
-from probability.empirical_distributions import EmpiricalDistribution
+from probability2.empirical_distributions import EmpiricalDistribution
 
-from probability.empirical_distributions.empirical_distributions_3 import (
+from probability2.empirical_distributions.empirical_distributions_3 import (
     ConditionalDistribution,
 )
 

@@ -1,6 +1,6 @@
 import numpy as np
-from probability import Key
-from probability import MultiDiscreteRV
+from probability2 import Key
+from probability2 import MultiDiscreteRV
 
 
 class ConditionalDistribution:

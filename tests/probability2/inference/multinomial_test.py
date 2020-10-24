@@ -1,6 +1,6 @@
 import pytest
-from probability.inference import Multinomial
-from probability.inference import MultinomialMLEInferrer as MLE
+from probability2.inference import Multinomial
+from probability2.inference import MultinomialMLEInferrer as MLE
 
 
 def test_exceptions_multinomial_mle_inferrer():

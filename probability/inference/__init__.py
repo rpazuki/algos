@@ -1,3 +1,0 @@
-from probability.inference.inference_1 import Inferrer
-from probability.inference.inference_1 import Multinomial
-from probability.inference.inference_2 import MultinomialMLEInferrer

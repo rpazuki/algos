@@ -1,6 +1,6 @@
-from probability import Distribution
-from probability import DiscreteRV
-from probability.empirical_distributions import FrequencyTable
+from probability2 import Distribution
+from probability2 import DiscreteRV
+from probability2.empirical_distributions import FrequencyTable
 
 
 class Binomial(Distribution):

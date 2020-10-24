@@ -1,4 +1,4 @@
-from probability import Key
+from probability2 import Key
 
 
 def test_conversion_key():

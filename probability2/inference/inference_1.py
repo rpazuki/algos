@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
-from probability import Distribution
-from probability.empirical_distributions import EmpiricalDistribution
-from probability.empirical_distributions import FrequencyTable
-from probability.empirical_distributions import DiscreteDistribution
+from probability2 import Distribution
+from probability2.empirical_distributions import EmpiricalDistribution
+from probability2.empirical_distributions import FrequencyTable
+from probability2.empirical_distributions import DiscreteDistribution
 
 
 class Inferrer(ABC):

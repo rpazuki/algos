@@ -3,12 +3,8 @@ from probability.core import Table
 
 
 def test_constructor_table():
-    table = Table(one=1, two=2, three=3)
-    assert table["one"] == 1
-    assert table["two"] == 2
-    assert table["three"] == 3
 
-    table = Table({"one": 1, "two": 2, "three": 3})
+    table = Table({"one": 1, "two": 2, "three": 3}, names=["Y1"])
     assert table["one"] == 1
     assert table["two"] == 2
     assert table["three"] == 3

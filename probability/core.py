@@ -295,6 +295,7 @@ class Table(dict):
             [name for name in self.names],
             [name for name in right.names if name not in commons],
         ]
+        # TODO: Table convert the key to RowKey for second time
         return Table(prodcut_dict, combined_names)
 
     def __mul__(self, right):

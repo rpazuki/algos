@@ -1,5 +1,7 @@
 from numbers import Number
 from collections.abc import Mapping, Iterable
+from itertools import groupby
+from operator import itemgetter
 import numpy as np
 
 
@@ -24,13 +26,13 @@ class Column:
         return np.unique(keys)
 
 
-class TableColumns:
+class TableColumns(Iterable):
     """Store the details of or more discrete random variables."""
 
     def __init__(self, names, table):
         self.names = names
-        self.columns = [Column(index, name, self) for index, name in enumerate(names)]
-        self.size = len(self.columns)
+        self._columns_ = [Column(index, name, self) for index, name in enumerate(names)]
+        self.size = len(self._columns_)
         self.table = table
 
     def to_key(self, *args, **kwargs):
@@ -80,11 +82,11 @@ class TableColumns:
             DiscreteRV: An instance of DiscreteRV.
         """
         if isinstance(index, int):
-            return self.columns[index]
+            return self._columns_[index]
         elif isinstance(index, str):
             i = self.index_of(index)
             if i > -1:
-                return self.columns[i]
+                return self._columns_[i]
             else:
                 raise ValueError(f"Cannot find the column: '{index}'.")
         raise ValueError("The provided index is not 'int' or 'str'.")
@@ -98,7 +100,7 @@ class TableColumns:
         Returns:
             int: Index of the random variable.
         """
-        for col in self.columns:
+        for col in self._columns_:
             if col.name == name:
                 return col.index
 
@@ -123,38 +125,64 @@ class TableColumns:
         """
         return name in self.names
 
+    def __iter__(self):
+        return iter(self._columns_)
+
 
 class Table(dict):
-    def __init__(self, rows, names=None):
+    def __init__(self, rows, names=None, _internal_=False):
 
-        if isinstance(rows, Mapping):
-            key_values = [(RowKey(k), value) for k, value in rows.items()]
-        elif isinstance(rows, Iterable):
-            key_values = [(RowKey(k), value) for k, value in rows]
+        if _internal_:
+            key_values = rows
+            self._row_sample_ = next(iter(rows))
         else:
-            raise ValueError("Table expect rows as Mapping/Iterable")
+            if isinstance(rows, Mapping):
+                key_values = [(RowKey(k), value) for k, value in rows.items()]
+            elif isinstance(rows, Iterable):
+                key_values = [(RowKey(k), value) for k, value in rows]
+            else:
+                raise ValueError("Table expect rows as Mapping/Iterable")
 
-        row_sample = key_values[0][0]
+            self._row_sample_ = key_values[0][0]
 
         if names is None:
-            names = [f"X{i+1}" for i, _ in enumerate(row_sample)]
+            names = [f"X{i+1}" for i, _ in enumerate(self._row_sample_)]
 
-        if len(names) != len(row_sample):
+        if len(names) != len(self._row_sample_):
             raise ValueError("The length of column names and columns are not the same.")
 
         super().__init__(key_values)
-        self.table_columns = TableColumns(names, self)
+        self.columns = TableColumns(names, self)
         self.names = names
 
     def __missing__(self, key):
         return None
 
     def __getitem__(self, args):
-        if self.table_columns.size == 1:
-            key = self.table_columns.to_key(args)
+        if self.columns.size == 1:
+            key = self.columns.to_key(args)
         else:
-            key = self.table_columns.to_key(*args)
+            key = self.columns.to_key(*args)
         return super().__getitem__(key)
+
+    def _check_keys_consistencies_(self):
+        # We suppose each column is positioned
+        # in a fix place of the n-tuple.
+        # Therefore, the levels of the column can be
+        # found by iterating over each tuple's item
+        # Convert each features line to tuple
+        first_row_types = [type(item) for item in self._row_sample_]
+        for row in self.keys():
+            # compair length
+            if len(row) != self.columns.size:
+                raise ValueError("The length of the 'factors' are not consistence.")
+            # compair row's elements type
+            comparisions = [
+                isinstance(element, type_1)
+                for element, type_1 in zip(row, first_row_types)
+            ]
+            if not all(comparisions):
+                raise ValueError("The types of the 'factors' are not consistence.")
 
     def _to_2d_array_(self):
         """Convert the distribution ( or the self._counter's
@@ -168,8 +196,45 @@ class Table(dict):
         """
         return np.array([RowKey(k) + (v,) for k, v in self.items()], dtype=np.object)
 
+    def _split_matrix_(self, array, indices=None):
+        """Convert the 2D array of the Table
+           to a generator of 2-elements tuple like
+           ((col_1, col_2, ..., col_n), value)
+
+           If the indices is provided, the tuple is
+           like
+           ((col_1, ..., col_n), (c_col_1, ..., c_col_m), value)
+           where col_i is from indices and c_col_j is
+           from its compliment
+
+        Args:
+            array (numpy ndarray):
+                A 2D array of Table
+            indices (list, optional):
+                list of indices to filter the column.
+                Defaults to None.
+        """
+
+        # divide the 2d array's rows to a tuple of
+        # columns (row[indices])
+        # and value row[-1]
+        if indices is None:
+            return ((RowKey(row[:-1]), row[-1]) for row in array)
+
+        # Find the indices of compliment columns (the other ones that
+        # are not part of conditioning)
+        comp_indices = np.array(
+            [i for i in range(self.columns.size) if i not in indices]
+        )
+        # divide the 2d array's rows to a tuple of columns,
+        # (row[indices]), compliment columns (row[comp_indices])
+        # and value row[-1]
+        return (
+            (RowKey(row[indices]), RowKey(row[comp_indices]), row[-1]) for row in array
+        )
+
     def get(self, *args, **kwargs):
-        key = self.table_columns.to_key(*args, **kwargs)
+        key = self.columns.to_key(*args, **kwargs)
         return super().__getitem__(key)
 
     def to_table(self, sort=False):
@@ -196,7 +261,7 @@ class Table(dict):
         rows = ""
         header = ""
         horizontal_line = ""
-        for i, name in enumerate(self.table_columns.names):
+        for i, name in enumerate(self.names):
             header += f"|{name}{padding(max_levels_len[i])(name)}"
             horizontal_line += "|" + "".join(["-"] * max_levels_len[i])
         header += "|" + "".join([" "] * max_freq_len) + "|"
@@ -211,7 +276,133 @@ class Table(dict):
 
         return f"{header}\n{horizontal_line}\n{rows}"
 
+    def marginal(self, *args):
+        """Marginalize the Table over a set of columns.
+
+        Args:
+            args (list):
+                List of column names to marginalised.
+
+        Raises:
+            ValueError:
+                Raises when one of the column names is
+                not defined.
+                Or raises when requested for all column names.
+
+        Returns:
+            Table: A new marginalised Table.
+        """
+        by_names = args
+        for name in by_names:
+            if name not in self.names:
+                raise ValueError(f"Column name: '{name}'' is not defined.")
+
+        if len(by_names) == self.columns.size:
+            raise ValueError("Cannot marginalize on all column names.")
+
+        indices = [i for i, name in enumerate(self.names) if name in by_names]
+        # Find the indices of compliment columns (the other ones that
+        # are not part of conditioning)
+        comp_indices = np.array(
+            [i for i in range(self.columns.size) if i not in indices]
+        )
+        # Convert the key:values to 2D numpy array
+        # the array rows are (row, value)
+        arr = self._to_2d_array_()
+        # filter the compliment random variables by columns
+        filtered_arr = np.c_[arr[:, comp_indices], arr[:, -1]]
+        # divide the 2d array's rows to a tuple of
+        # compliment columns (row[comp_indices])
+        # and count row[-1]
+        arr_gen = self._split_matrix_(filtered_arr)
+        # Before calling the groupby, we have to sort the generator
+        # by the tuple of compliment columns (index zero in itemgetter)
+        sorted_arr = sorted(arr_gen, key=itemgetter(0))
+        # since the values in each 'group' are
+        # (compliment columns, value)
+        # here we group by 'compliment columns' and apply
+        # the sum on the value. Then the dictionary of
+        # compliment columns:op_of_values
+        # is an acceptable argument for Table
+        grouped_arr = {
+            k: sum([item[1] for item in g])
+            for k, g in groupby(sorted_arr, key=itemgetter(0))
+        }
+        return Table(grouped_arr, names=[self.names[i] for i in comp_indices])
+
+    def reduce(self, **kwargs):
+        """Reduce the Table by one or more columns.
+
+        Args:
+            kwargs (dict):
+                A dictionary that its 'key' is the name
+                of the column and its 'value'
+                is the value that must be reduced by.
+
+        Raises:
+            ValueError:
+                If the provided names do not exist in the Table.
+
+        Returns:
+            [Table]: A reduce Table.
+        """
+        by_names = kwargs
+        for name in by_names:
+            if name not in self.names:
+                raise ValueError(f"The column name '{name}'' is" f" not defined.")
+
+        indices = [self.columns.index_of(col) for col, _ in by_names.items()]
+        values = np.array([value for _, value in by_names.items()], dtype=np.object)
+        #
+        # Convert the key:values to 2D numpy array
+        # the array rows are (keys, value)
+        arr_counter = self._to_2d_array_()
+        # Find the indices of compliment columns (the other ones that
+        # are not part of reduce)
+        compliment_indices = [i for i in range(self.columns.size) if i not in indices]
+        # filter the 2d array rows by provided values of the reduce
+        # conditioned_arr is a boolean one, and filtering happens
+        # in the second line
+        conditioned_arr = np.all(arr_counter[:, indices] == values, axis=1)
+        sliced_arr = arr_counter[conditioned_arr, :]
+        # filter the 2d array columns (the compliment columns)
+        # plus the value column (which is the last column)
+        sliced_arr = sliced_arr[:, compliment_indices + [-1]]
+        # divide the 2d array's rows to a tuple of columns
+        # and value
+        # So, we make a generator that divide the rows to the tuple of
+        # columns (tuple(row[:-1]) and value (row[-1])
+        arr_gen = self._split_matrix_(sliced_arr)
+        # Before calling the groupby, we have to sort the generator
+        # by the tuple of column (index zero in itemgetter)
+        sorted_slice_arr = sorted(arr_gen, key=itemgetter(0))
+        # group by the filtered columns (compliment
+        # columns) and sum the value per key
+        # Note that the 'itemgetter' read the first index which
+        # is the tuple of compliment columns
+        slice_dist = {
+            k: sum([item[1] for item in g])
+            for k, g in groupby(sorted_slice_arr, key=itemgetter(0))
+        }
+        # Since we have a dictionary of (compliment columns: values),
+        # it is easy to create a Table.
+        # Obviously, the names of these columns must
+        # be the same as compliment columns, which we selected
+        # from self.rvs.names
+        return Table(slice_dist, [self.names[i] for i in compliment_indices])
+
     def product(self, right):
+        """Multiply two Tables.
+
+        Args:
+            right ([type]): [description]
+
+        Raises:
+            ValueError: [description]
+
+        Returns:
+            [type]: [description]
+        """
         if not isinstance(right, Table):
             raise ValueError("The 'right' argument must be a Table.")
 
@@ -230,6 +421,7 @@ class Table(dict):
                     for k2, v2 in right.items()
                 },
                 names,
+                _internal_=True,
             )
         # In the case that there is one or more common variables,
         # the operation is similar to SQL inner join
@@ -287,16 +479,41 @@ class Table(dict):
                 for right_comp, right_value in right_lookup[comm]:
                     # prodcut_dict values must be multiplied.
                     # prodcut_dict keys are the combination: (left, right_compliment).
-                    prodcut_dict[RowKey(left_key) + RowKey(right_comp)] = (
-                        left_value * right_value
-                    )
+                    prodcut_dict[left_key + right_comp] = left_value * right_value
+
         # names are the combination of [left_names, right_compelements_names]
         combined_names = np.r_[
             [name for name in self.names],
             [name for name in right.names if name not in commons],
         ]
         # TODO: Table convert the key to RowKey for second time
-        return Table(prodcut_dict, combined_names)
+        return Table(
+            prodcut_dict,
+            combined_names,
+            _internal_=True,
+        )
+
+    def add(self, that):
+        """Combines two FrequencyTable and return
+        a new one. All the frequencies are sum together.
+        This is not a mathematical sum.
+        """
+        if not isinstance(that, Table):
+            raise ValueError("Table can only adds to Table.")
+
+        for name in self.names:
+            if name not in that.names:
+                raise ValueError(
+                    "Two adding Table do not have the same random variables."
+                )
+        this_copy = self.copy()
+        for key in that.keys():
+            if key in this_copy:
+                this_copy[key] += that[key]
+            else:
+                this_copy[key] = that[key]
+
+        return Table(this_copy, names=self.names)
 
     def __mul__(self, right):
         if not isinstance(right, Table):
@@ -309,3 +526,6 @@ class Table(dict):
             raise ValueError("The 'right' argument must be a DiscreteDistribution.")
 
         return left.product(self)
+
+    def __add__(self, right):
+        return self.add(right)

@@ -9,7 +9,10 @@ class FrequencyTable(Table):
         counter = Counter(samples)
         super().__init__(counter, names, _internal_)
         # Elements count
-        self.total = sum(counter.values())
+        try:
+            self.total = sum(counter.values())
+        except TypeError:
+            self.total = 1
         #
         if consistencies:
             self._check_keys_consistencies_()
@@ -235,6 +238,20 @@ class FrequencyTable(Table):
         """
         (rows, names) = self._group_by_(*args)
         return FrequencyTable(rows, names, consistencies=False, _internal_=True)
+
+    def condition_on(self, *args):
+        (rows, names, children_names) = self._group_on_(*args)
+        return FrequencyTable(
+            {
+                key: FrequencyTable(
+                    values, children_names, consistencies=False, _internal_=True
+                )
+                for key, values in rows.items()
+            },
+            names,
+            consistencies=False,
+            _internal_=True,
+        )
 
     def __mul__(self, right):
         (rows, names) = self._product_(right)

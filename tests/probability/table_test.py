@@ -103,3 +103,32 @@ def test_getitem_table():
     assert table.get("three", Y2="Blue", Y3=33) == 3
     assert table.get("Blue", Y1="three", Y3=33) == 3
     assert table.get(Y1="three", Y2="Blue", Y3=33) == 3
+
+
+def test_table_of_table():
+    sample_1 = {
+        ("a", "x", 1, 33): 1,
+        ("a", "x", 2, 33): 2,
+        ("a", "x", 1, 44): 3,
+        ("a", "x", 2, 44): 4,
+        ("a", "y", 1, 33): 5,
+        ("a", "y", 2, 33): 6,
+        ("a", "y", 1, 44): 7,
+        ("a", "y", 2, 44): 8,
+        ("b", "x", 1, 33): 9,
+        ("b", "x", 2, 33): 10,
+        ("b", "x", 1, 44): 11,
+        ("b", "x", 2, 44): 12,
+        ("b", "y", 1, 33): 13,
+        # ("b", "y", 2, 33): 14,
+        ("b", "y", 1, 44): 15,
+        ("b", "y", 2, 44): 16,
+    }
+    t1 = Table(sample_1, ["X1", "X2", "X3", "X4"])
+    t2 = Table(sample_1, ["X1", "X2", "X3", "X4"])
+    t3 = Table(sample_1, ["X1", "X2", "X3", "X4"])
+    t4 = Table(sample_1, ["X1", "X2", "X3", "X4"])
+
+    sample_2 = {"t1": t1, "t2": t2, "t3": t3, "t4": t4}
+    tt = Table(sample_2, ["t"])
+    assert tt["t2"] == t2

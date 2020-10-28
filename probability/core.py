@@ -23,7 +23,7 @@ class Column:
         self.table_columns = table_columns
 
     def levels(self):
-        keys = [key(self.index) for key in self.table_columns.table.keys()]
+        keys = [key[self.index] for key in self.table_columns.table.keys()]
         return np.unique(keys)
 
 
@@ -383,6 +383,78 @@ class Table(dict):
             for k, g in groupby(sorted_arr, key=itemgetter(0))
         }
         return (grouped_arr, [self.names[i] for i in comp_indices])
+
+    def _group_on_(self, *args):
+        """Creates the conditional based on
+           the provided names of columns.
+
+        Args:
+            args (list):
+                List of names of provided random
+                variables.
+
+        Raises:
+            ValueError:
+                If the provided RV names do not exist
+                in the distribution.
+
+        Returns:
+            (row, names)
+        """
+        on_names = args
+        for name in on_names:
+            if name not in self.names:
+                raise ValueError(f"Column name '{name}' is not defined.")
+
+        if len(on_names) == self.columns.size:
+            raise ValueError("Cannot condition on all columns.")
+
+        if self.columns.size == 1:
+            raise TypeError("This is a single column Table.")
+
+        indices = [i for i, name in enumerate(self.names) if name in on_names]
+        # Find the indices of compliment columns (the other ones that
+        # are not part of conditioning)
+        comp_indices = np.array(
+            [i for i in range(self.columns.size) if i not in indices]
+        )
+        # Convert the key:value to 2D numpy array
+        # the array rows are (rows, value)
+        arr = self._to_2d_array_()
+        # divide the 2d array's rows to a tuple of columns,
+        # (row[indices]), compliment columns (row[comp_indices])
+        # and values row[-1]
+        arr_gen = self._split_matrix_(arr, indices)
+        # Before calling the groupby, we have to sort the generator
+        # by the tuple of columns (index zero in itemgetter)
+        # And since later we will call the group by on group,
+        # for each key we do the inner sort too (index one in itemgetter)
+        sorted_arr = sorted(arr_gen, key=itemgetter(0, 1))
+        # This method convert a group to a dictionary
+
+        def make_dict(group):
+            # since the values in 'group' argument are
+            # (columns, compliment columns, value)
+            # here we group by 'compliment columns' and sum
+            # the values.
+            return {
+                k: sum([item[2] for item in g2])
+                for k, g2 in groupby(group, key=itemgetter(1))
+            }
+
+        # For each group (belongs a unique values), we create
+        # a dictionary in a dictionary comprehension
+        grouped_arr = {
+            k: make_dict(g) for k, g in groupby(sorted_arr, key=itemgetter(0))
+        }
+        # The above dictionary is dictionary of dictionaries
+        # # the first set of names is for parent dictionary
+        # and the second set is for children
+        return (
+            grouped_arr,
+            [self.names[i] for i in indices],
+            [self.names[i] for i in comp_indices],
+        )
 
     def get(self, *args, **kwargs):
         key = self.columns.to_key(*args, **kwargs)

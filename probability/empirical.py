@@ -5,9 +5,9 @@ from probability.core import Table
 
 
 class FrequencyTable(Table):
-    def __init__(self, samples, names=None, consistencies=True):
+    def __init__(self, samples, names=None, consistencies=True, _internal_=False):
         counter = Counter(samples)
-        super().__init__(counter, names)
+        super().__init__(counter, names, _internal_)
         # Elements count
         self.total = sum(counter.values())
         #
@@ -168,6 +168,10 @@ class FrequencyTable(Table):
         else:
             return value
 
+    def prob(self, *args, **kwargs):
+        key = self.columns.to_key(*args, **kwargs)
+        return self.probability(key)
+
     def probability(self, key):
         """Gets the probability of the random variable, when its value is 'key'.
 
@@ -212,3 +216,30 @@ class FrequencyTable(Table):
             f"total:{self.total}\n"
             f"normalised:{np.abs(self.total -1) <= 1e-16}\n"
         )
+
+    def marginal(self, *args):
+        """Marginalize the Table over a set of columns.
+
+        Args:
+            args (list):
+                List of column names to marginalised.
+
+        Raises:
+            ValueError:
+                Raises when one of the column names is
+                not defined.
+                Or raises when requested for all column names.
+
+        Returns:
+            Table: A new marginalised Table.
+        """
+        (rows, names) = self._group_by_(*args)
+        return FrequencyTable(rows, names, consistencies=False, _internal_=True)
+
+    def __mul__(self, right):
+        (rows, names) = self._product_(right)
+        return FrequencyTable(rows, names, consistencies=False, _internal_=True)
+
+    def __rmul__(self, left):
+        (rows, names) = left._product_(self)
+        return FrequencyTable(rows, names, consistencies=False, _internal_=True)

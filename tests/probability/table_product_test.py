@@ -60,7 +60,7 @@ sample_2 = {
 def test_product_exceptions_table():
     table = Table(sample_1)
     with pytest.raises(ValueError):
-        table.product(2)
+        table *= 2
 
 
 def test_product_with_one_common_var_table():

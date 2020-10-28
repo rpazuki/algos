@@ -26,6 +26,17 @@ def test_constructor_table():
     assert table["two"] == 2
     assert table["three"] == 3
 
+    # numeric key
+    table = Table({1: 1, 2: 2, 3: 3})
+    assert table[1] == 1
+    assert table[2] == 2
+    assert table[3] == 3
+
+    table = Table({1.1: 1, 2.2: 2, 3.3: 3})
+    assert table[1.1] == 1
+    assert table[2.2] == 2
+    assert table[3.3] == 3
+
 
 def test_getitem_table():
     # One column

@@ -26,6 +26,11 @@ class Column:
         keys = [key[self.index] for key in self.table_columns.table.keys()]
         return np.unique(keys)
 
+    def __str__(self):
+        return f"{self.name}"
+
+    __repr__ = __str__
+
 
 class TableColumns(Iterable):
     """Store the details of or more discrete random variables."""

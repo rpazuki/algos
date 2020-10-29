@@ -198,6 +198,9 @@ class Table(dict):
         """Override the dict by converting the
         comma separated arguments to RowKey
         """
+        if isinstance(args, RowKey):
+            return super().__getitem__(args)
+
         if self.columns.size == 1:
             key = self.columns.to_key(args)
         else:
@@ -477,7 +480,7 @@ class Table(dict):
             comp_names,
         )
 
-    def reduce(self, **kwargs):
+    def _reduce_(self, **kwargs):
         """Reduce the Table by one or more columns.
 
         Args:
@@ -521,16 +524,13 @@ class Table(dict):
         # columns) and sum the value per key
         # Note that the 'itemgetter' read the first index which
         # is the tuple of compliment columns
-        slice_dist = {
-            k: sum([item[1] for item in g])
-            for k, g in groupby(sorted_slice_arr, key=itemgetter(0))
-        }
-        # Since we have a dictionary of (compliment columns: values),
-        # it is easy to create a Table.
-        # Obviously, the names of these columns must
-        # be the same as compliment columns, which we selected
-        # from self.rvs.names
-        return Table(slice_dist, comp_names)
+        return (
+            {
+                k: sum([item[1] for item in g])
+                for k, g in groupby(sorted_slice_arr, key=itemgetter(0))
+            },
+            comp_names,
+        )
 
     def get(self, *args, **kwargs):
         key = self.columns.to_key(*args, **kwargs)
@@ -593,6 +593,21 @@ class Table(dict):
         """
         (rows, names) = self._group_by_(*args)
         return Table(rows, names, _internal_=True)
+
+    def reduce(self, **kwargs):
+        (rows, names) = self._reduce_(**kwargs)
+        return Table(rows, names, _internal_=True)
+
+    def condition_on(self, *args):
+        (rows, names, children_names) = self._group_on_(*args)
+        return Table(
+            {
+                key: Table(values, children_names, _internal_=True)
+                for key, values in rows.items()
+            },
+            names,
+            _internal_=True,
+        )
 
     def add(self, that):
         """Combines two FrequencyTable and return

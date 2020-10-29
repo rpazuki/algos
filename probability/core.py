@@ -198,7 +198,10 @@ class Table(dict):
         """Override the dict by converting the
         comma separated arguments to RowKey
         """
-        if isinstance(args, RowKey):
+        # This is faster than isinstance
+        # We are sure there is not any inheritance
+        # to deal with
+        if type(args) is RowKey:
             return super().__getitem__(args)
 
         if self.columns.size == 1:
@@ -631,6 +634,15 @@ class Table(dict):
 
         return Table(this_copy, names=self.names)
 
+    def _merge_(self, rows, names):
+        first_row_value = next(iter(rows.values()))
+        all_names = list(names) + first_row_value.names
+
+        return (
+            {k1 + k2: v2 for k1, v1 in rows.items() for k2, v2 in v1.items()},
+            all_names,
+        )
+
     def __mul__(self, right):
 
         if not isinstance(right, (Table, Number)):
@@ -641,7 +653,14 @@ class Table(dict):
         else:
             (rows, names) = self._product_(right)
 
-        return Table(rows, names, _internal_=True)
+        # For table of table or P(x)P(Y|X)
+        # we turn it back to table of P(X,Y)
+        first_row_value = next(iter(rows.values()))
+        if isinstance(first_row_value, Table):
+            (rows, names) = self._merge_(rows, names)
+            return Table(rows, names, _internal_=True)
+        else:
+            return Table(rows, names, _internal_=True)
 
     def __rmul__(self, left):
         if not isinstance(left, (Table, Number)):

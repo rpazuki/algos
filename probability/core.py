@@ -1,7 +1,21 @@
 from collections.abc import Mapping, Iterable
 from itertools import groupby
 from operator import itemgetter
+from numbers import Number
 import numpy as np
+
+
+def to_dict(groupby_index, value_index):
+    def make_dict(sorted_items):
+        # It groups the sorted item based on
+        # the element as groupby_index
+        # and then sum the values at value_index
+        return {
+            k: sum([item[value_index] for item in g2])
+            for k, g2 in groupby(sorted_items, key=itemgetter(groupby_index))
+        }
+
+    return make_dict
 
 
 class RowKey(tuple):
@@ -257,6 +271,9 @@ class Table(dict):
         return (
             (RowKey(row[indices]), RowKey(row[comp_indices]), row[-1]) for row in array
         )
+
+    def _product_by_number_(self, value):
+        return ({k1: v1 * value for k1, v1 in self.items()}, self.names.copy())
 
     def _product_(self, right):
         """Multiply two Tables.
@@ -600,17 +617,26 @@ class Table(dict):
         return Table(this_copy, names=self.names)
 
     def __mul__(self, right):
-        if not isinstance(right, Table):
-            raise ValueError("The 'right' argument must be a 'Table'.")
 
-        (rows, names) = self._product_(right)
+        if not isinstance(right, (Table, Number)):
+            raise ValueError("The 'right' argument must be a 'Table' or 'Number'.")
+
+        if isinstance(right, Number):
+            (rows, names) = self._product_by_number_(right)
+        else:
+            (rows, names) = self._product_(right)
+
         return Table(rows, names, _internal_=True)
 
     def __rmul__(self, left):
-        if not isinstance(left, Table):
-            raise ValueError("The 'right' argument must be a DiscreteDistribution.")
+        if not isinstance(left, (Table, Number)):
+            raise ValueError("The 'right' argument must be a 'Table' or 'Number'.")
 
-        (rows, names) = left._product_(self)
+        if isinstance(left, Number):
+            (rows, names) = self._product_by_number_(left)
+        else:
+            (rows, names) = left._product_(self)
+
         return Table(rows, names, _internal_=True)
 
     def __add__(self, right):

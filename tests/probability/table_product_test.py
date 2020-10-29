@@ -60,7 +60,20 @@ sample_2 = {
 def test_product_exceptions_table():
     table = Table(sample_1)
     with pytest.raises(ValueError):
-        table *= 2
+        table *= "ttt"
+
+
+def test_product_with_a_number_table():
+    table1 = Table(sample_1, names=["X1", "X2", "X3", "X4"])
+    table2 = 2 * table1
+    assert table2["a", "x", 1, 33] == 1 * 2
+    assert table2["b", "x", 1, 33] == 9 * 2
+    assert table2["b", "x", 2, 44] == 12 * 2
+
+    table3 = table1 * 1.2
+    assert table3["a", "x", 1, 33] == 1 * 1.2
+    assert table3["b", "x", 1, 33] == 9 * 1.2
+    assert table3["b", "x", 2, 44] == 12 * 1.2
 
 
 def test_product_with_one_common_var_table():

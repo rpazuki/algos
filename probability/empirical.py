@@ -1,4 +1,5 @@
 from collections import Counter
+from numbers import Number
 import numpy as np
 from probability.core import RowKey
 from probability.core import Table
@@ -257,9 +258,17 @@ class FrequencyTable(Table):
         return super().to_table(sort, value_title)
 
     def __mul__(self, right):
-        (rows, names) = self._product_(right)
+        if isinstance(right, Number):
+            (rows, names) = self._product_by_number_(right)
+        else:
+            (rows, names) = self._product_(right)
+
         return FrequencyTable(rows, names, consistencies=False, _internal_=True)
 
     def __rmul__(self, left):
-        (rows, names) = left._product_(self)
+        if isinstance(left, Number):
+            (rows, names) = self._product_by_number_(left)
+        else:
+            (rows, names) = left._product_(self)
+
         return FrequencyTable(rows, names, consistencies=False, _internal_=True)

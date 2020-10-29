@@ -7,8 +7,10 @@ import numpy as np
 class RowKey(tuple):
     def __new__(cls, value):
         try:
-            # if isinstance(value, str) or isinstance(value, Number):
-            # if isinstance(value, str):
+            # Using type instead of isinstance is faster
+            # This is one of the performance bottleneck
+            # Also, for numbers it uses the ducking to
+            # catch the exception which is quite fast
             if type(value) is str:
                 return tuple.__new__(cls, (value,))
             return tuple.__new__(cls, value)
@@ -134,6 +136,20 @@ class TableColumns(Iterable):
     def __iter__(self):
         return iter(self._columns_)
 
+    def split_columns(self, *args):
+        by_names = args
+        for name in by_names:
+            if name not in self.names:
+                raise ValueError(f"Column name: '{name}'' is not defined.")
+
+        indices = [i for i, name in enumerate(self.names) if name in by_names]
+        indices_names = [self.names[i] for i in indices]
+        # Find the indices of compliment columns (the other ones that
+        # are not part of by_names). It cab ne an empty list
+        comp_indices = [i for i in range(self.size) if i not in indices]
+        comp_names = [self.names[i] for i in comp_indices]
+        return (indices, indices_names, comp_indices, comp_names)
+
 
 class Table(dict):
     def __init__(self, rows, names=None, _internal_=False):
@@ -165,6 +181,9 @@ class Table(dict):
         return None
 
     def __getitem__(self, args):
+        """Override the dict by converting the
+        comma separated arguments to RowKey
+        """
         if self.columns.size == 1:
             key = self.columns.to_key(args)
         else:
@@ -351,24 +370,14 @@ class Table(dict):
         Returns:
             Table: (rows, names).
         """
-        by_names = args
-        for name in by_names:
-            if name not in self.names:
-                raise ValueError(f"Column name: '{name}'' is not defined.")
-
-        if len(by_names) == self.columns.size:
+        if len(args) == self.columns.size:
             raise ValueError("Cannot marginalize on all column names.")
-
-        indices = [i for i, name in enumerate(self.names) if name in by_names]
-        # Find the indices of compliment columns (the other ones that
-        # are not part of conditioning)
-        comp_indices = np.array(
-            [i for i in range(self.columns.size) if i not in indices]
-        )
+        # split columns to indices and comp_indices
+        (_, _, comp_indices, comp_names) = self.columns.split_columns(*args)
         # Convert the key:values to 2D numpy array
         # the array rows are (row, value)
         arr = self._to_2d_array_()
-        # filter the compliment random variables by columns
+        # filter the compliment columns
         filtered_arr = np.c_[arr[:, comp_indices], arr[:, -1]]
         # divide the 2d array's rows to a tuple of
         # compliment columns (row[comp_indices])
@@ -387,7 +396,7 @@ class Table(dict):
             k: sum([item[1] for item in g])
             for k, g in groupby(sorted_arr, key=itemgetter(0))
         }
-        return (grouped_arr, [self.names[i] for i in comp_indices])
+        return (grouped_arr, comp_names)
 
     def _group_on_(self, *args):
         """Creates the conditional based on
@@ -406,23 +415,13 @@ class Table(dict):
         Returns:
             (row, names)
         """
-        on_names = args
-        for name in on_names:
-            if name not in self.names:
-                raise ValueError(f"Column name '{name}' is not defined.")
-
-        if len(on_names) == self.columns.size:
-            raise ValueError("Cannot condition on all columns.")
-
         if self.columns.size == 1:
             raise TypeError("This is a single column Table.")
 
-        indices = [i for i, name in enumerate(self.names) if name in on_names]
-        # Find the indices of compliment columns (the other ones that
-        # are not part of conditioning)
-        comp_indices = np.array(
-            [i for i in range(self.columns.size) if i not in indices]
-        )
+        if len(args) == self.columns.size:
+            raise ValueError("Cannot condition on all columns.")
+        # split columns to indices and comp_indices
+        (indices, indices_names, _, comp_names) = self.columns.split_columns(*args)
         # Convert the key:value to 2D numpy array
         # the array rows are (rows, value)
         arr = self._to_2d_array_()
@@ -457,21 +456,76 @@ class Table(dict):
         # and the second set is for children
         return (
             grouped_arr,
-            [self.names[i] for i in indices],
-            [self.names[i] for i in comp_indices],
+            indices_names,
+            comp_names,
         )
+
+    def reduce(self, **kwargs):
+        """Reduce the Table by one or more columns.
+
+        Args:
+            kwargs (dict):
+                A dictionary that its 'key' is the name
+                of the column and its 'value'
+                is the value that must be reduced by.
+
+        Raises:
+            ValueError:
+                If the provided names do not exist in the Table.
+
+        Returns:
+            [Table]: A reduce Table.
+        """
+        # split columns to indices and comp_indices
+        columns = list(kwargs.keys())
+        (indices, _, comp_indices, comp_names) = self.columns.split_columns(*columns)
+        values = np.array([value for _, value in kwargs.items()], dtype=np.object)
+        #
+        # Convert the key:values to 2D numpy array
+        # the array rows are (keys, value)
+        arr_counter = self._to_2d_array_()
+        # filter the 2d array rows by provided values of the reduce
+        # conditioned_arr is a boolean one, and filtering happens
+        # in the second line
+        conditioned_arr = np.all(arr_counter[:, indices] == values, axis=1)
+        sliced_arr = arr_counter[conditioned_arr, :]
+        # filter the 2d array columns (the compliment columns)
+        # plus the value column (which is the last column)
+        sliced_arr = sliced_arr[:, comp_indices + [-1]]
+        # divide the 2d array's rows to a tuple of columns
+        # and value
+        # So, we make a generator that divide the rows to the tuple of
+        # columns (tuple(row[:-1]) and value (row[-1])
+        arr_gen = self._split_matrix_(sliced_arr)
+        # Before calling the groupby, we have to sort the generator
+        # by the tuple of column (index zero in itemgetter)
+        sorted_slice_arr = sorted(arr_gen, key=itemgetter(0))
+        # group by the filtered columns (compliment
+        # columns) and sum the value per key
+        # Note that the 'itemgetter' read the first index which
+        # is the tuple of compliment columns
+        slice_dist = {
+            k: sum([item[1] for item in g])
+            for k, g in groupby(sorted_slice_arr, key=itemgetter(0))
+        }
+        # Since we have a dictionary of (compliment columns: values),
+        # it is easy to create a Table.
+        # Obviously, the names of these columns must
+        # be the same as compliment columns, which we selected
+        # from self.rvs.names
+        return Table(slice_dist, comp_names)
 
     def get(self, *args, **kwargs):
         key = self.columns.to_key(*args, **kwargs)
         return super().__getitem__(key)
 
-    def to_table(self, sort=False):
+    def to_table(self, sort=False, value_title=""):
 
         arr = self._to_2d_array_().astype("U")
         arr_len = np.apply_along_axis(lambda row: [len(item) for item in row], 0, arr)
         max_levels_len = np.max(arr_len[:, :-1], axis=0)
 
-        max_freq_len = np.max(arr_len[:, -1])
+        max_freq_len = max(np.max(arr_len[:, -1]), len(value_title))
 
         def padding(max_len):
             def str_padding(value):
@@ -522,67 +576,6 @@ class Table(dict):
         """
         (rows, names) = self._group_by_(*args)
         return Table(rows, names, _internal_=True)
-
-    def reduce(self, **kwargs):
-        """Reduce the Table by one or more columns.
-
-        Args:
-            kwargs (dict):
-                A dictionary that its 'key' is the name
-                of the column and its 'value'
-                is the value that must be reduced by.
-
-        Raises:
-            ValueError:
-                If the provided names do not exist in the Table.
-
-        Returns:
-            [Table]: A reduce Table.
-        """
-        by_names = kwargs
-        for name in by_names:
-            if name not in self.names:
-                raise ValueError(f"The column name '{name}'' is" f" not defined.")
-
-        indices = [self.columns.index_of(col) for col, _ in by_names.items()]
-        values = np.array([value for _, value in by_names.items()], dtype=np.object)
-        #
-        # Convert the key:values to 2D numpy array
-        # the array rows are (keys, value)
-        arr_counter = self._to_2d_array_()
-        # Find the indices of compliment columns (the other ones that
-        # are not part of reduce)
-        compliment_indices = [i for i in range(self.columns.size) if i not in indices]
-        # filter the 2d array rows by provided values of the reduce
-        # conditioned_arr is a boolean one, and filtering happens
-        # in the second line
-        conditioned_arr = np.all(arr_counter[:, indices] == values, axis=1)
-        sliced_arr = arr_counter[conditioned_arr, :]
-        # filter the 2d array columns (the compliment columns)
-        # plus the value column (which is the last column)
-        sliced_arr = sliced_arr[:, compliment_indices + [-1]]
-        # divide the 2d array's rows to a tuple of columns
-        # and value
-        # So, we make a generator that divide the rows to the tuple of
-        # columns (tuple(row[:-1]) and value (row[-1])
-        arr_gen = self._split_matrix_(sliced_arr)
-        # Before calling the groupby, we have to sort the generator
-        # by the tuple of column (index zero in itemgetter)
-        sorted_slice_arr = sorted(arr_gen, key=itemgetter(0))
-        # group by the filtered columns (compliment
-        # columns) and sum the value per key
-        # Note that the 'itemgetter' read the first index which
-        # is the tuple of compliment columns
-        slice_dist = {
-            k: sum([item[1] for item in g])
-            for k, g in groupby(sorted_slice_arr, key=itemgetter(0))
-        }
-        # Since we have a dictionary of (compliment columns: values),
-        # it is easy to create a Table.
-        # Obviously, the names of these columns must
-        # be the same as compliment columns, which we selected
-        # from self.rvs.names
-        return Table(slice_dist, [self.names[i] for i in compliment_indices])
 
     def add(self, that):
         """Combines two FrequencyTable and return

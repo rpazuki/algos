@@ -253,6 +253,9 @@ class FrequencyTable(Table):
             _internal_=True,
         )
 
+    def to_table(self, sort=False, value_title="Frequency"):
+        return super().to_table(sort, value_title)
+
     def __mul__(self, right):
         (rows, names) = self._product_(right)
         return FrequencyTable(rows, names, consistencies=False, _internal_=True)

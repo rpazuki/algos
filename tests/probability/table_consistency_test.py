@@ -136,3 +136,29 @@ def test_factoring_table():
     table5 = table2 * table3
     for k in table1:
         assert table5[k] == approx(table1[k], abs=1e-16)
+    # On two columns
+    table6 = table1.marginal("Y3", "Y4")
+    table6 = normalise(table6)
+    table7 = table1.condition_on("Y1", "Y2")
+    table7 = Table({k: normalise(v) for k, v in table7.items()}, table7.names)
+
+    table8 = table6 * table7
+    for k in table1:
+        assert table8[k] == approx(table1[k], abs=1e-16)
+
+    table9 = table7 * table6
+    for k in table1:
+        assert table9[k] == approx(table1[k], abs=1e-16)
+    # On Three columns
+    table10 = table1.marginal("Y4")
+    table10 = normalise(table10)
+    table11 = table1.condition_on("Y1", "Y2", "Y3")
+    table11 = Table({k: normalise(v) for k, v in table11.items()}, table11.names)
+
+    table12 = table10 * table11
+    for k in table1:
+        assert table12[k] == approx(table1[k], abs=1e-16)
+
+    table13 = table11 * table10
+    for k in table1:
+        assert table13[k] == approx(table1[k], abs=1e-16)

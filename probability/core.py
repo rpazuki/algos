@@ -7,16 +7,7 @@ import numpy as np
 
 ColumnsInfo = namedtuple(
     "ColumnsInfo",
-    [
-        "indices",
-        "indices_names",
-        "complimnet_indices",
-        "complimnet_names",
-        "children_indices",
-        "children_indices_names",
-        "children_complimnet_indices",
-        "children_complimnet_names",
-    ],
+    ["indices", "indices_names", "complimnet_indices", "complimnet_names"],
 )
 
 
@@ -181,28 +172,12 @@ class TableColumns(Iterable):
         # are not part of by_names). It can be an empty list
         comp_indices = [i for i in range(self.size) if i not in indices]
         comp_names = [self.names[i] for i in comp_indices]
-        # Find the indices in children names
-        # It can be an empty list
-        children_indices = [
-            i for i, name in enumerate(self.children_names) if name in by_names
-        ]
-        children_indices_names = [self.children_names[i] for i in children_indices]
-        # Find the indices of compliment columns (the other ones that
-        # are not part of by_names). It can be an empty list
-        children_comp_indices = [
-            i for i in range(len(self.children_names)) if i not in children_indices
-        ]
-        children_comp_names = [self.children_names[i] for i in children_comp_indices]
 
         return ColumnsInfo(
             indices=indices,
             indices_names=indices_names,
             complimnet_indices=comp_indices,
             complimnet_names=comp_names,
-            children_indices=children_indices,
-            children_indices_names=children_indices_names,
-            children_complimnet_indices=children_comp_indices,
-            children_complimnet_names=children_comp_names,
         )
 
 
@@ -290,43 +265,6 @@ class Table(dict):
                 is the counts.
         """
         return np.array([k + (v,) for k, v in self.items()], dtype=np.object)
-
-    def _split_matrix_(self, array, indices=None):
-        """Convert the 2D array of the Table
-           to a generator of 2-elements tuple like
-           ((col_1, col_2, ..., col_n), value)
-
-           If the indices is provided, the tuple is
-           like
-           ((col_1, ..., col_n), (c_col_1, ..., c_col_m), value)
-           where col_i is from indices and c_col_j is
-           from its compliment
-
-        Args:
-            array (numpy ndarray):
-                A 2D array of Table
-            indices (list, optional):
-                list of indices to filter the column.
-                Defaults to None.
-        """
-
-        # divide the 2d array's rows to a tuple of
-        # columns (row[indices])
-        # and value row[-1]
-        if indices is None:
-            return ((RowKey(row[:-1]), row[-1]) for row in array)
-
-        # Find the indices of compliment columns (the other ones that
-        # are not part of conditioning)
-        comp_indices = np.array(
-            [i for i in range(self.columns.size) if i not in indices]
-        )
-        # divide the 2d array's rows to a tuple of columns,
-        # (row[indices]), compliment columns (row[comp_indices])
-        # and value row[-1]
-        return (
-            (RowKey(row[indices]), RowKey(row[comp_indices]), row[-1]) for row in array
-        )
 
     def _product_by_number_(self, value):
         return ({k1: v1 * value for k1, v1 in self.items()}, self.names.copy())
@@ -615,42 +553,62 @@ class Table(dict):
         Returns:
             [Table]: A reduce Table.
         """
-        # split columns to indices and comp_indices
-        columns = list(kwargs.keys())
-        columns_info = self.columns.split_columns(*columns)
-        values = np.array([value for _, value in kwargs.items()], dtype=np.object)
-        #
-        # Convert the key:values to 2D numpy array
-        # the array rows are (keys, value)
-        arr_counter = self.to_2d_array()
-        # filter the 2d array rows by provided values of the reduce
-        # conditioned_arr is a boolean one, and filtering happens
-        # in the second line
-        conditioned_arr = np.all(arr_counter[:, columns_info.indices] == values, axis=1)
-        sliced_arr = arr_counter[conditioned_arr, :]
-        # filter the 2d array columns (the compliment columns)
-        # plus the value column (which is the last column)
-        sliced_arr = sliced_arr[:, columns_info.complimnet_indices + [-1]]
-        # divide the 2d array's rows to a tuple of columns
-        # and value
-        # So, we make a generator that divide the rows to the tuple of
-        # columns (tuple(row[:-1]) and value (row[-1])
-        arr_gen = self._split_matrix_(sliced_arr)
-        # Before calling the groupby, we have to sort the generator
-        # by the tuple of column (index zero in itemgetter)
-        sorted_slice_arr = sorted(arr_gen, key=itemgetter(0))
-        # group by the filtered columns (compliment
-        # columns) and sum the value per key
-        # Note that the 'itemgetter' read the first index which
-        # is the tuple of compliment columns
-        return Table(
-            {
-                k: sum([item[1] for item in g])
-                for k, g in groupby(sorted_slice_arr, key=itemgetter(0))
-            },
-            columns_info.complimnet_names,
-            _internal_=True,
-        )
+        #############################################
+        #  Algorithm
+
+        def reduce_internal(table):
+            # split columns to indices and comp_indices
+            columns = list(kwargs.keys())
+            if len(columns) == table.columns.size:
+                raise ValueError("Cannot reduce on all column names.")
+            columns_info = table.columns.split_columns(*columns)
+            values = np.array([value for _, value in kwargs.items()], dtype=np.object)
+            #
+            # Convert the key:values to 2D numpy array
+            # the array rows are (keys, value)
+            arr_counter = table.to_2d_array()
+            # filter the 2d array rows by provided values of the reduce
+            # conditioned_arr is a boolean one, and filtering happens
+            # in the second line
+            conditioned_arr = np.all(
+                arr_counter[:, columns_info.indices] == values, axis=1
+            )
+            sliced_arr = arr_counter[conditioned_arr, :]
+            # filter the 2d array columns (the compliment columns)
+            # plus the value column (which is the last column)
+            sliced_arr = sliced_arr[:, columns_info.complimnet_indices + [-1]]
+            # divide the 2d array's rows to a tuple of columns
+            # and value
+            # So, we make a generator that divide the rows to the tuple of
+            # columns (tuple(row[:-1]) and value (row[-1])
+            arr_gen = ((RowKey(row[:-1]), row[-1]) for row in sliced_arr)
+            # Before calling the groupby, we have to sort the generator
+            # by the tuple of column (index zero in itemgetter)
+            sorted_slice_arr = sorted(arr_gen, key=itemgetter(0))
+            # group by the filtered columns (compliment
+            # columns) and sum the value per key
+            # Note that the 'itemgetter' read the first index which
+            # is the tuple of compliment columns
+            return Table(
+                {
+                    k: sum([item[1] for item in g])
+                    for k, g in groupby(sorted_slice_arr, key=itemgetter(0))
+                },
+                columns_info.complimnet_names,
+                _internal_=True,
+            )
+
+        ############################################
+        # MultiTable handeling
+        if self.columns.is_multitable():
+
+            return Table(
+                {k: reduce_internal(table) for k, table in self.items()},
+                self.names,
+                _internal_=True,
+            )
+        else:
+            return reduce_internal(self)
 
     def get(self, *args, **kwargs):
         key = self.columns.to_key(*args, **kwargs)

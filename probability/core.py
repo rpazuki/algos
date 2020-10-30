@@ -514,53 +514,90 @@ class Table(dict):
         Returns:
             (row, names)
         """
-        if self.columns.size == 1:
-            raise TypeError("This is a single column Table.")
+        #############################################
+        #  Algorithm
 
-        if len(args) == self.columns.size:
-            raise ValueError("Cannot condition on all columns.")
-        # split columns to indices and comp_indices
-        columns_info = self.columns.split_columns(*args)
-        # Convert the key:value to 2D numpy array
-        # the array rows are (rows, value)
-        arr = self.to_2d_array()
-        # divide the 2d array's rows to a tuple of columns,
-        # (row[indices]), compliment columns (row[comp_indices])
-        # and values row[-1]
-        arr_gen = self._split_matrix_(arr, columns_info.indices)
-        # Before calling the groupby, we have to sort the generator
-        # by the tuple of columns (index zero in itemgetter)
-        # And since later we will call the group by on group,
-        # for each key we do the inner sort too (index one in itemgetter)
-        sorted_arr = sorted(arr_gen, key=itemgetter(0, 1))
-        # This method convert a group to a dictionary
+        def condition_on_internal(table):
+            if table.columns.size == 1:
+                raise ValueError(
+                    "This is a single column Table and cannot condition on."
+                )
 
-        def make_dict(group):
-            # since the values in 'group' argument are
-            # (columns, compliment columns, value)
-            # here we group by 'compliment columns' and sum
-            # the values.
-            return {
-                k: sum([item[2] for item in g2])
-                for k, g2 in groupby(group, key=itemgetter(1))
+            if len(args) == table.columns.size:
+                raise ValueError("Cannot condition on all columns.")
+            # split columns to indices and comp_indices
+            columns_info = table.columns.split_columns(*args)
+            # Convert the key:value to 2D numpy array
+            # the array rows are (rows, value)
+            arr = table.to_2d_array()
+            # divide the 2d array's rows to a tuple of columns,
+            # (row[indices]), compliment columns (row[comp_indices])
+            # and values row[-1]
+            arr_gen = (
+                (
+                    RowKey(row[columns_info.indices]),
+                    RowKey(row[columns_info.complimnet_indices]),
+                    row[-1],
+                )
+                for row in arr
+            )
+            # Before calling the groupby, we have to sort the generator
+            # by the tuple of columns (index zero in itemgetter)
+            # And since later we will call the group by on group,
+            # for each key we do the inner sort too (index one in itemgetter)
+            sorted_arr = sorted(arr_gen, key=itemgetter(0, 1))
+            # This method convert a group to a dictionary
+
+            def make_dict(group):
+                # since the values in 'group' argument are
+                # (columns, compliment columns, value)
+                # here we group by 'compliment columns' and sum
+                # the values.
+                return {
+                    k: sum([item[2] for item in g2])
+                    for k, g2 in groupby(group, key=itemgetter(1))
+                }
+
+            # For each group (belongs a unique values), we create
+            # a dictionary in a dictionary comprehension
+            grouped_arr = {
+                k: make_dict(g) for k, g in groupby(sorted_arr, key=itemgetter(0))
             }
+            # The above dictionary is dictionary of dictionaries
+            # # the first set of names is for parent dictionary
+            # and the second set is for children
+            return Table(
+                {
+                    key: Table(values, columns_info.complimnet_names, _internal_=True)
+                    for key, values in grouped_arr.items()
+                },
+                columns_info.indices_names,
+                _internal_=True,
+            )
 
-        # For each group (belongs a unique values), we create
-        # a dictionary in a dictionary comprehension
-        grouped_arr = {
-            k: make_dict(g) for k, g in groupby(sorted_arr, key=itemgetter(0))
-        }
-        # The above dictionary is dictionary of dictionaries
-        # # the first set of names is for parent dictionary
-        # and the second set is for children
-        return Table(
-            {
-                key: Table(values, columns_info.complimnet_names, _internal_=True)
-                for key, values in grouped_arr.items()
-            },
-            columns_info.indices_names,
-            _internal_=True,
-        )
+        ############################################
+        # MultiTable handeling
+        if self.columns.is_multitable():
+            for name in args:
+                if name in self.names:
+                    raise ValueError(
+                        f"Cannot condition on conditioned columns:'{name}'."
+                    )
+            conditioned_children = (
+                (k, condition_on_internal(table)) for k, table in self.items()
+            )
+
+            return Table(
+                {
+                    key2 + key1: table
+                    for key1, key2_table in conditioned_children
+                    for key2, table in key2_table.items()
+                },
+                list(args) + self.names,
+                _internal_=True,
+            )
+        else:
+            return condition_on_internal(self)
 
     def reduce(self, **kwargs):
         """Reduce the Table by one or more columns.

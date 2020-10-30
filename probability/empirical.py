@@ -513,20 +513,6 @@ class FrequencyTable2(Table):
         (rows, names) = self.marginal(*args)
         return FrequencyTable2(rows, names, consistencies=False, _internal_=True)
 
-    def condition_on(self, *args):
-        (rows, names, children_names) = self.condition_on(*args)
-        return FrequencyTable2(
-            {
-                key: FrequencyTable2(
-                    values, children_names, consistencies=False, _internal_=True
-                )
-                for key, values in rows.items()
-            },
-            names,
-            consistencies=False,
-            _internal_=True,
-        )
-
     def to_table(self, sort=False, value_title="Frequency"):
         return super().to_table(sort, value_title)
 

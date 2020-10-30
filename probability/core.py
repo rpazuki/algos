@@ -151,7 +151,7 @@ class TableColumns(Iterable):
         return self.size
 
     def __str__(self):
-        return "".join([f"{s}\n" for s in self.names])
+        return "".join([f"{s}, " for s in self.names])
 
     __repr__ = __str__
 
@@ -279,7 +279,7 @@ class Table(dict):
             if not all(comparisions):
                 raise ValueError("The types of the 'factors' are not consistence.")
 
-    def _to_2d_array_(self):
+    def to_2d_array(self):
         """Convert the distribution ( or the self._counter's
            key:value) to a 2D numpy array where the array
            rows are [[(RV_1, RV_2, ..., RV_n, count)],[...
@@ -443,6 +443,45 @@ class Table(dict):
         Returns:
             Table: (rows, names).
         """
+
+        #############################################
+        #  Algorithm
+
+        def marginal_internal(table):
+            #############################################
+            # check the validity of operation based on column names
+            if len(args) == table.columns.size:
+                raise ValueError("Cannot marginalize on all column names.")
+
+            # split columns to indices and comp_indices
+            columns_info = table.columns.split_columns(*args)
+            #
+            # Convert the key:values to 2D numpy array
+            # the array rows are (row, value)
+            arr = table.to_2d_array()
+            # filter the compliment columns
+            filtered_arr = np.c_[arr[:, columns_info.complimnet_indices], arr[:, -1]]
+            # split the 2d array's rows to a tuple of
+            # compliment columns (row[comp_indices])
+            # and count row[-1]
+            arr_gen = ((RowKey(row[:-1]), row[-1]) for row in filtered_arr)
+            # Before calling the groupby, we have to sort the generator
+            # by the tuple of compliment columns (index zero in itemgetter)
+            sorted_arr = sorted(arr_gen, key=itemgetter(0))
+            # since the values in each 'group' are
+            # (compliment columns, value)
+            # here we group by 'compliment columns' and apply
+            # the sum on the value. Then the dictionary of
+            # compliment columns:op_of_values
+            # is an acceptable argument for Table
+            grouped_arr = {
+                k: sum([item[1] for item in g])
+                for k, g in groupby(sorted_arr, key=itemgetter(0))
+            }
+            return Table(grouped_arr, columns_info.complimnet_names, _internal_=True)
+
+        ############################################
+        # MultiTable handeling
         if self.columns.is_multitable():
             for name in args:
                 if name in self.names:
@@ -451,40 +490,12 @@ class Table(dict):
                     )
 
             return Table(
-                {k: table.marginal(*args) for k, table in self.items()},
+                {k: marginal_internal(table) for k, table in self.items()},
                 self.names,
                 _internal_=True,
             )
-
-        # check the validity of operation based on column names
-        if len(args) == self.columns.size:
-            raise ValueError("Cannot marginalize on all column names.")
-        # split columns to indices and comp_indices
-        columns_info = self.columns.split_columns(*args)
-        #
-        # Convert the key:values to 2D numpy array
-        # the array rows are (row, value)
-        arr = self._to_2d_array_()
-        # filter the compliment columns
-        filtered_arr = np.c_[arr[:, columns_info.complimnet_indices], arr[:, -1]]
-        # split the 2d array's rows to a tuple of
-        # compliment columns (row[comp_indices])
-        # and count row[-1]
-        arr_gen = ((RowKey(row[:-1]), row[-1]) for row in filtered_arr)
-        # Before calling the groupby, we have to sort the generator
-        # by the tuple of compliment columns (index zero in itemgetter)
-        sorted_arr = sorted(arr_gen, key=itemgetter(0))
-        # since the values in each 'group' are
-        # (compliment columns, value)
-        # here we group by 'compliment columns' and apply
-        # the sum on the value. Then the dictionary of
-        # compliment columns:op_of_values
-        # is an acceptable argument for Table
-        grouped_arr = {
-            k: sum([item[1] for item in g])
-            for k, g in groupby(sorted_arr, key=itemgetter(0))
-        }
-        return Table(grouped_arr, columns_info.complimnet_names, _internal_=True)
+        else:
+            return marginal_internal(self)
 
     def condition_on(self, *args):
         """Creates the conditional based on
@@ -512,7 +523,7 @@ class Table(dict):
         columns_info = self.columns.split_columns(*args)
         # Convert the key:value to 2D numpy array
         # the array rows are (rows, value)
-        arr = self._to_2d_array_()
+        arr = self.to_2d_array()
         # divide the 2d array's rows to a tuple of columns,
         # (row[indices]), compliment columns (row[comp_indices])
         # and values row[-1]
@@ -574,7 +585,7 @@ class Table(dict):
         #
         # Convert the key:values to 2D numpy array
         # the array rows are (keys, value)
-        arr_counter = self._to_2d_array_()
+        arr_counter = self.to_2d_array()
         # filter the 2d array rows by provided values of the reduce
         # conditioned_arr is a boolean one, and filtering happens
         # in the second line
@@ -610,7 +621,7 @@ class Table(dict):
 
     def to_table(self, sort=False, value_title=""):
 
-        arr = self._to_2d_array_().astype("U")
+        arr = self.to_2d_array().astype("U")
         arr_len = np.apply_along_axis(lambda row: [len(item) for item in row], 0, arr)
         max_levels_len = np.max(arr_len[:, :-1], axis=0)
 
@@ -652,22 +663,57 @@ class Table(dict):
         a new one. All the frequencies are sum together.
         This is not a mathematical sum.
         """
+        #############################################
+        # check the validity of operation based on column names
         if not isinstance(that, Table):
             raise ValueError("Table can only adds to Table.")
 
-        for name in self.names:
-            if name not in that.names:
-                raise ValueError(
-                    "Two adding Table do not have the same random variables."
-                )
-        this_copy = self.copy()
-        for key in that.keys():
-            if key in this_copy:
-                this_copy[key] += that[key]
-            else:
-                this_copy[key] = that[key]
+        if self.columns.size != that.columns.size:
+            raise ValueError("Two adding Table do not have the same columns.")
 
-        return Table(this_copy, names=self.names)
+        if len(self.children_names) != len(that.children_names):
+            raise ValueError("Two adding Table do not have the same children columns.")
+
+        for i, name in enumerate(self.names):
+            if name != that.names[i]:
+                raise ValueError(
+                    "Two adding Table do not have the same columns "
+                    "(order must be the same too)."
+                )
+
+        for i, name in enumerate(self.children_names):
+            if name != that.children_names[i]:
+                raise ValueError(
+                    "Two adding Table do not have the same children columns "
+                    "(order must be the same too)."
+                )
+        #############################################
+        #  Algorithm
+        #
+
+        def add_internal(this, that, names):
+            if that is not None:
+                for key in that.keys():
+                    if key in this:
+                        this[key] += that[key]
+                    else:
+                        this[key] = that[key]
+
+            return Table(this, names=names, _internal_=True)
+
+        ############################################
+        # MultiTable handeling
+        if self.columns.is_multitable():
+            return Table(
+                {
+                    k: add_internal(table.copy(), that[k], self.children_names)
+                    for k, table in self.items()
+                },
+                self.names,
+                _internal_=True,
+            )
+
+        return add_internal(self.copy(), that, self.names)
 
     def _merge_(self, rows, names):
         first_row_value = next(iter(rows.values()))

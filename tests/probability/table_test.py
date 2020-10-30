@@ -132,3 +132,96 @@ def test_table_of_table():
     sample_2 = {"t1": t1, "t2": t2, "t3": t3, "t4": t4}
     tt = Table(sample_2, ["t"])
     assert tt["t2"] == t2
+
+
+def test_total_table():
+    table1 = Table({"a": 3, "b": 4, "c": 5}, names=["X1"])
+    assert table1.total() == 12
+
+    table1 = Table(
+        {("a", "x"): 4, ("a", "y"): 4, ("b", "x"): 6, ("b", "y"): 6},
+        names=["X1", "X2"],
+    )
+    assert table1.total() == 20
+
+    samples = {
+        ("a", "x", 1, 33): 1,
+        ("a", "x", 2, 33): 2,
+        ("a", "x", 1, 44): 3,
+        ("a", "x", 2, 44): 4,
+        ("a", "y", 1, 33): 5,
+        ("a", "y", 2, 33): 6,
+        ("a", "y", 1, 44): 7,
+        ("a", "y", 2, 44): 8,
+        ("b", "x", 1, 33): 9,
+        ("b", "x", 2, 33): 10,
+        ("b", "x", 1, 44): 11,
+        ("b", "x", 2, 44): 12,
+        ("b", "y", 1, 33): 13,
+        ("b", "y", 2, 33): 14,
+        ("b", "y", 1, 44): 15,
+        ("b", "y", 2, 44): 16,
+    }
+    table1 = Table(samples, names=["X1", "X2", "X3", "X4"])
+    con_1 = table1.condition_on("X1", normalise=False)
+    totals = con_1.total()
+    assert totals[("a",)] == 36
+    assert totals[("b",)] == 100
+
+
+def test_normalise_table():
+    table1 = Table({"a": 3, "b": 4, "c": 5}, names=["X1"])
+    table1.normalise()
+    assert table1["a"] == 3 / 12
+    assert table1["b"] == 4 / 12
+
+    table1 = Table(
+        {("a", "x"): 4, ("a", "y"): 4, ("b", "x"): 6, ("b", "y"): 6},
+        names=["X1", "X2"],
+    )
+    table1.normalise()
+    assert table1["a", "x"] == 4 / 20
+    assert table1["a", "y"] == 4 / 20
+    assert table1["b", "x"] == 6 / 20
+    assert table1["b", "y"] == 6 / 20
+
+    samples = {
+        ("a", "x", 1, 33): 1,
+        ("a", "x", 2, 33): 2,
+        ("a", "x", 1, 44): 3,
+        ("a", "x", 2, 44): 4,
+        ("a", "y", 1, 33): 5,
+        ("a", "y", 2, 33): 6,
+        ("a", "y", 1, 44): 7,
+        ("a", "y", 2, 44): 8,
+        ("b", "x", 1, 33): 9,
+        ("b", "x", 2, 33): 10,
+        ("b", "x", 1, 44): 11,
+        ("b", "x", 2, 44): 12,
+        ("b", "y", 1, 33): 13,
+        ("b", "y", 2, 33): 14,
+        ("b", "y", 1, 44): 15,
+        ("b", "y", 2, 44): 16,
+    }
+    table1 = Table(samples, names=["X1", "X2", "X3", "X4"])
+    con_1 = table1.condition_on("X1")
+    con_1.normalise()
+    assert con_1["a"]["x", 1, 33] == 1 / 36
+    assert con_1["a"]["y", 1, 33] == 5 / 36
+    assert con_1["a"]["y", 2, 33] == 6 / 36
+    assert con_1["a"]["y", 2, 44] == 8 / 36
+    assert con_1["b"]["x", 1, 33] == 9 / 100
+    assert con_1["b"]["y", 1, 33] == 13 / 100
+    assert con_1["b"]["y", 2, 44] == 16 / 100
+
+    con_1 = table1.condition_on("X2")
+    con_1.normalise()
+    assert con_1["x"]["a", 1, 33] == 1 / 52
+    assert con_1["x"]["a", 2, 44] == 4 / 52
+    assert con_1["y"]["b", 1, 33] == 13 / 84
+
+    con_1 = table1.condition_on("X1", "X2")
+    con_1.normalise()
+    assert con_1["a", "x"][1, 33] == 1 / 10
+    assert con_1["a", "x"][2, 44] == 4 / 10
+    assert con_1["b", "y"][2, 33] == 14 / 58

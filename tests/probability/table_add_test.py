@@ -1,6 +1,5 @@
 import pytest
 from probability.core import Table
-from tests.helpers import compare
 
 
 def test_add_exception_table():
@@ -135,16 +134,16 @@ def test_add_table():
     con_1 = table1.condition_on("X1")
     con_2 = table2.condition_on("X1")
     table3 = con_1 + con_2
-    assert table3["a"]["x", 1, 33] == 2 * 1
-    assert table3["a"]["x", 1, 44] == 2 * 3
-    assert table3["b"]["x", 1, 33] == 2 * 9
-    assert table3["b"]["x", 1, 44] == 2 * 11
+    assert table3["a"]["x", 1, 33] == (2 * 1) / 36
+    assert table3["a"]["x", 1, 44] == (2 * 3) / 36
+    assert table3["b"]["x", 1, 33] == (2 * 9) / 86
+    assert table3["b"]["x", 1, 44] == (2 * 11) / 86
 
     con_1 = table1.condition_on("X1", "X3")
     con_2 = table2.condition_on("X1", "X3")
     table3 = con_1 + con_2
-    assert table3["a", 1]["x", 33] == 2 * 1
-    assert table3["a", 2]["y", 44] == 2 * 8
-    assert table3["b", 1]["x", 44] == 2 * 11
+    assert table3["a", 1]["x", 33] == (2 * 1) / 16
+    assert table3["a", 2]["y", 44] == (2 * 8) / 20
+    assert table3["b", 1]["x", 44] == (2 * 11) / 48
     assert table3["b", 2]["y", 33] is None
-    assert table3["b", 2]["y", 44] == 2 * 16
+    assert table3["b", 2]["y", 44] == (2 * 16) / 38

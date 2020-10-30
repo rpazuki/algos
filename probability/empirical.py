@@ -3,24 +3,24 @@ from numbers import Number
 import numpy as np
 from probability.core import RowKey
 from probability.core import Table
+from probability.core import Distribution
 
 
-class FrequencyTable:
+class FrequencyTable(Distribution):
     def __init__(self, samples, names=None, consistencies=True, _table_=None):
 
         if _table_ is None:
             counter = Counter(samples)
-            self.table = Table(counter, names)
+            table = Table(counter, names)
             #
             if consistencies:
-                self.table._check_keys_consistencies_()
-        else:
-            self.table = _table_
-        # Elements count
-        try:
+                table._check_keys_consistencies_()
             self.total = sum(counter.values())
-        except TypeError:
-            self.total = 1
+        else:
+            table = _table_
+            self.total = table.total()
+        #
+        super().__init__(table)
 
     @classmethod
     def from_np_array(cls, samples, names=None):
@@ -141,21 +141,11 @@ class FrequencyTable:
         levels_extended = np.r_[["less"], levels, ["more"]]
         return levels_extended[indices]
 
-    def __getitem__(self, args):
-        value = self.table[args]
-        if value is None:
-            return 0
-
-        return value
-
-    def to_key(self, *args, **kwargs):
-        return self.table.columns.to_key(*args, **kwargs)
-
     def freq(self, *args, **kwargs):
         key = self.to_key(*args, **kwargs)
-        return self.frequency(key, normalised=False)
+        return self.frequency(key)
 
-    def frequency(self, key, normalised=False):
+    def frequency(self, key):
         """Gets the frequency of the random variable, when its value is 'key'.
 
            It return zero if the value is not observed.
@@ -169,15 +159,7 @@ class FrequencyTable:
         Returns:
             int or float: frequency or probability of the random variable.
         """
-        if self.total == 0:
-            return 0
-
-        value = self.__getitem__(key)
-
-        if normalised:
-            return value / self.total
-        else:
-            return value
+        return self.__getitem__(key)
 
     def prob(self, *args, **kwargs):
         key = self.to_key(*args, **kwargs)
@@ -199,12 +181,6 @@ class FrequencyTable:
             return 0
 
         return self.__getitem__(key) / self.total
-
-    def normalise(self):
-        """Normalise the distribution."""
-        for k in self.table.keys():
-            self.table[k] = self.table[k] / self.total
-        self.total = 1.0
 
     def most_common(self, num: int = None):
         """List the n most common elements and their counts from the most
@@ -228,54 +204,8 @@ class FrequencyTable:
             f"normalised:{np.abs(self.total -1) <= 1e-16}\n"
         )
 
-    def marginal(self, *args):
-        """Marginalize the Table over a set of columns.
-
-        Args:
-            args (list):
-                List of column names to marginalised.
-
-        Raises:
-            ValueError:
-                Raises when one of the column names is
-                not defined.
-                Or raises when requested for all column names.
-
-        Returns:
-            FrequencyTable: A new marginalised Table.
-        """
-        table = self.table.group_by(*args)
-        return FrequencyTable(None, _table_=table)
-
-    def condition_on(self, *args):
-        table = self.table.group_on(*args)
-        return FrequencyTable(None, _table_=table)
-
     def to_table(self, sort=False, value_title="Frequency"):
         return self.table.to_table(sort, value_title)
-
-    def __mul__(self, right):
-        if isinstance(right, Number):
-            table = self.table * right
-        elif isinstance(right, FrequencyTable):
-            table = self.table * right.table
-        else:
-            raise ValueError(
-                "The 'right' argument must be a 'FrequencyTable' or 'Number'."
-            )
-
-        return FrequencyTable(None, _table_=table)
-
-    def __rmul__(self, left):
-        if isinstance(left, Number):
-            table = left * self.table
-        elif isinstance(left, FrequencyTable):
-            table = left.table * self.table
-        else:
-            raise ValueError(
-                "The 'left' argument must be a 'FrequencyTable' or 'Number'."
-            )
-        return FrequencyTable(None, _table_=table)
 
 
 class FrequencyTable2(Table):
@@ -494,7 +424,7 @@ class FrequencyTable2(Table):
             f"normalised:{np.abs(self.total -1) <= 1e-16}\n"
         )
 
-    def marginal(self, *args):
+    def marginal(self, *args, normalise=True):
         """Marginalize the Table over a set of columns.
 
         Args:

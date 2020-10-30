@@ -1,3 +1,4 @@
+from abc import ABC  # , abstractmethod
 from collections.abc import Mapping, Iterable
 from collections import namedtuple
 from itertools import groupby
@@ -365,7 +366,7 @@ class Table(dict):
         ]
         return (prodcut_dict, combined_names)
 
-    def marginal(self, *args):
+    def marginal(self, *args, normalise=True):
         """Marginal of (group by) the Table over a set of columns.
 
         Args:
@@ -427,15 +428,20 @@ class Table(dict):
                         f"Cannot marginalize on conditioned columns:'{name}'."
                     )
 
-            return Table(
+            table = Table(
                 {k: marginal_internal(table) for k, table in self.items()},
                 self.names,
                 _internal_=True,
             )
         else:
-            return marginal_internal(self)
+            table = marginal_internal(self)
 
-    def condition_on(self, *args):
+        if normalise:
+            table.normalise()
+
+        return table
+
+    def condition_on(self, *args, normalise=True):
         """Creates the conditional based on
            the provided names of columns.
 
@@ -504,7 +510,7 @@ class Table(dict):
             # The above dictionary is dictionary of dictionaries
             # # the first set of names is for parent dictionary
             # and the second set is for children
-            return Table(
+            table = Table(
                 {
                     key: Table(values, columns_info.complimnet_names, _internal_=True)
                     for key, values in grouped_arr.items()
@@ -512,6 +518,10 @@ class Table(dict):
                 columns_info.indices_names,
                 _internal_=True,
             )
+            if normalise:
+                table.normalise()
+
+            return table
 
         ############################################
         # MultiTable handeling
@@ -710,14 +720,26 @@ class Table(dict):
 
         return add_internal(self.copy(), that, self.names)
 
-    def _merge_(self, rows, names):
-        first_row_value = next(iter(rows.values()))
-        all_names = list(names) + first_row_value.names
+    def total(self):
+        if self.columns.is_multitable():
+            return {k: table.total() for k, table in self.items()}
 
-        return (
-            {k1 + k2: v2 for k1, v1 in rows.items() for k2, v2 in v1.items()},
-            all_names,
-        )
+        return sum(self.values())
+
+    def normalise(self):
+        if self.columns.is_multitable():
+            for k, total in self.total().items():
+                if total == 0:
+                    continue
+                table = self[k]
+                for k2 in table:
+                    table[k2] /= total
+
+        else:
+            total = self.total()
+            if total != 0:
+                for k in self.keys():
+                    self[k] /= total
 
     def __mul__(self, right):
 
@@ -734,7 +756,8 @@ class Table(dict):
         # we turn it back to table of P(X,Y)
         first_row_value = next(iter(rows.values()))
         if isinstance(first_row_value, Table):
-            (rows, names) = self._merge_(rows, names)
+            rows = {k1 + k2: v2 for k1, v1 in rows.items() for k2, v2 in v1.items()}
+            names = list(names) + first_row_value.names
 
         return Table(rows, names, _internal_=True)
 
@@ -750,9 +773,56 @@ class Table(dict):
         # we turn it back to table of P(X,Y)
         first_row_value = next(iter(rows.values()))
         if isinstance(first_row_value, Table):
-            (rows, names) = self._merge_(rows, names)
+            rows = {k1 + k2: v2 for k1, v1 in rows.items() for k2, v2 in v1.items()}
+            names = list(names) + first_row_value.names
 
         return Table(rows, names, _internal_=True)
 
     def __add__(self, right):
         return self.add(right)
+
+
+class Distribution(ABC, Mapping):
+    def __init__(self, table):
+        self.table = table
+
+    def __len__(self):
+        return self.table.__len__()
+
+    def __getitem__(self, key):
+        value = self.table[key]
+        if value is None:
+            return 0
+
+        return value
+
+    def __iter__(self):
+        return self.table.__iter__()
+
+    def prob(self, *args, **kwargs):
+        key = self.to_key(*args, **kwargs)
+        return self.probability(key)
+
+    def probability(self, key):
+        """Gets the probability of the random variable, when its value is 'key'.
+
+           It return zero if the value is not observed.
+
+        Args:
+            key (object):
+                the value of the random variable.
+
+        Returns:
+            float: probability of the random variable.
+        """
+        return self.__getitem__(key)
+
+    def to_key(self, *args, **kwargs):
+        return self.table.columns.to_key(*args, **kwargs)
+
+    def normalise(self):
+        """Normalise the distribution."""
+        self.table.normalise()
+
+    def to_table(self, sort=False, value_title="Probability"):
+        return self.table.to_table(sort, value_title)

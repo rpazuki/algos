@@ -118,18 +118,18 @@ def test_reduce_by_name_on_conditioned_table():
     reduced_table = con_1.reduce(X2="y")
     assert reduced_table.columns.size == 1
     assert all(compare(reduced_table.columns.children_names, ["X3", "X4"]))
-    assert reduced_table["a"][1, 33] == 5
-    assert reduced_table["b"][(2, 44)] == 16
+    assert reduced_table["a"][1, 33] == 5 / 36
+    assert reduced_table["b"][(2, 44)] == 16 / 100
 
     reduced_table = con_1.reduce(X2="y", X3=1)
     assert reduced_table.columns.size == 1
     assert all(compare(reduced_table.columns.children_names, ["X4"]))
-    assert reduced_table["a"][33] == 5
-    assert reduced_table["b"][44] == 15
+    assert reduced_table["a"][33] == 5 / 36
+    assert reduced_table["b"][44] == 15 / 100
 
     con_1 = table.condition_on("X1", "X3")
     reduced_table = con_1.reduce(X2="y")
     assert reduced_table.columns.size == 2
     assert all(compare(reduced_table.columns.children_names, ["X4"]))
-    assert reduced_table["a", 1][33] == 5
-    assert reduced_table["b", 2][44] == 16
+    assert reduced_table["a", 1][33] == 5 / 16
+    assert reduced_table["b", 2][44] == 16 / 52

@@ -151,3 +151,19 @@ def test_product_with_single_column_table():
 
     table3 = single_table * table1
     assert all(compare(table3.names, ["X2", "X1", "X3", "X4"]))
+
+
+def test_product_with_table_of_table_column_table():
+    table1 = Table(sample_1, names=["X1", "X2", "X3", "X4"])
+    table2 = Table(sample_2, names=["X3", "X5", "X6", "X7"])
+    con_1 = table1.group_on("X1")
+    con_2 = 2 * con_1
+    for k in con_1:
+        assert con_2[k] == con_1[k] * 2
+
+    con_2 = con_1 * 2
+    for k in con_1:
+        assert con_2[k] == con_1[k] * 2
+
+    con_2 = table2 * con_1
+    print(con_2.names)

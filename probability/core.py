@@ -1,8 +1,23 @@
 from collections.abc import Mapping, Iterable
+from collections import namedtuple
 from itertools import groupby
 from operator import itemgetter
 from numbers import Number
 import numpy as np
+
+ColumnsInfo = namedtuple(
+    "ColumnsInfo",
+    [
+        "indices",
+        "indices_names",
+        "complimnet_indices",
+        "complimnet_names",
+        "children_indices",
+        "children_indices_names",
+        "children_complimnet_indices",
+        "children_complimnet_names",
+    ],
+)
 
 
 def to_dict(groupby_index, value_index):
@@ -51,8 +66,9 @@ class Column:
 class TableColumns(Iterable):
     """Store the details of or more discrete random variables."""
 
-    def __init__(self, names, table):
+    def __init__(self, names, children_names, table):
         self.names = names
+        self.children_names = children_names
         self._columns_ = [Column(index, name, self) for index, name in enumerate(names)]
         self.size = len(self._columns_)
         self.table = table
@@ -128,6 +144,9 @@ class TableColumns(Iterable):
 
         return -1
 
+    def is_multitable(self):
+        return len(self.children_names) > 0
+
     def __len__(self):
         return self.size
 
@@ -153,16 +172,38 @@ class TableColumns(Iterable):
     def split_columns(self, *args):
         by_names = args
         for name in by_names:
-            if name not in self.names:
+            if name not in self.names and name not in self.children_names:
                 raise ValueError(f"Column name: '{name}'' is not defined.")
 
         indices = [i for i, name in enumerate(self.names) if name in by_names]
         indices_names = [self.names[i] for i in indices]
         # Find the indices of compliment columns (the other ones that
-        # are not part of by_names). It cab ne an empty list
+        # are not part of by_names). It can be an empty list
         comp_indices = [i for i in range(self.size) if i not in indices]
         comp_names = [self.names[i] for i in comp_indices]
-        return (indices, indices_names, comp_indices, comp_names)
+        # Find the indices in children names
+        # It can be an empty list
+        children_indices = [
+            i for i, name in enumerate(self.children_names) if name in by_names
+        ]
+        children_indices_names = [self.children_names[i] for i in children_indices]
+        # Find the indices of compliment columns (the other ones that
+        # are not part of by_names). It can be an empty list
+        children_comp_indices = [
+            i for i in range(len(self.children_names)) if i not in children_indices
+        ]
+        children_comp_names = [self.children_names[i] for i in children_comp_indices]
+
+        return ColumnsInfo(
+            indices=indices,
+            indices_names=indices_names,
+            complimnet_indices=comp_indices,
+            complimnet_names=comp_names,
+            children_indices=children_indices,
+            children_indices_names=children_indices_names,
+            children_complimnet_indices=children_comp_indices,
+            children_complimnet_names=children_comp_names,
+        )
 
 
 class Table(dict):
@@ -188,8 +229,15 @@ class Table(dict):
             raise ValueError("The length of column names and columns are not the same.")
 
         super().__init__(key_values)
-        self.columns = TableColumns(names, self)
+
         self.names = names
+        value_sample = super().__getitem__(self._row_sample_)
+        if isinstance(value_sample, Table):
+            self.columns = TableColumns(
+                names=names, children_names=value_sample.names, table=self
+            )
+        else:
+            self.columns = TableColumns(names=names, children_names=[], table=self)
 
     def __missing__(self, key):
         return None
@@ -377,7 +425,7 @@ class Table(dict):
         ]
         return (prodcut_dict, combined_names)
 
-    def _group_by_(self, *args):
+    def group_by(self, *args):
         """group by the Table over a set of columns.
 
         Args:
@@ -396,12 +444,12 @@ class Table(dict):
         if len(args) == self.columns.size:
             raise ValueError("Cannot marginalize on all column names.")
         # split columns to indices and comp_indices
-        (_, _, comp_indices, comp_names) = self.columns.split_columns(*args)
+        columns_info = self.columns.split_columns(*args)
         # Convert the key:values to 2D numpy array
         # the array rows are (row, value)
         arr = self._to_2d_array_()
         # filter the compliment columns
-        filtered_arr = np.c_[arr[:, comp_indices], arr[:, -1]]
+        filtered_arr = np.c_[arr[:, columns_info.complimnet_indices], arr[:, -1]]
         # divide the 2d array's rows to a tuple of
         # compliment columns (row[comp_indices])
         # and count row[-1]
@@ -419,9 +467,9 @@ class Table(dict):
             k: sum([item[1] for item in g])
             for k, g in groupby(sorted_arr, key=itemgetter(0))
         }
-        return (grouped_arr, comp_names)
+        return Table(grouped_arr, columns_info.complimnet_names, _internal_=True)
 
-    def _group_on_(self, *args):
+    def group_on(self, *args):
         """Creates the conditional based on
            the provided names of columns.
 
@@ -444,14 +492,14 @@ class Table(dict):
         if len(args) == self.columns.size:
             raise ValueError("Cannot condition on all columns.")
         # split columns to indices and comp_indices
-        (indices, indices_names, _, comp_names) = self.columns.split_columns(*args)
+        columns_info = self.columns.split_columns(*args)
         # Convert the key:value to 2D numpy array
         # the array rows are (rows, value)
         arr = self._to_2d_array_()
         # divide the 2d array's rows to a tuple of columns,
         # (row[indices]), compliment columns (row[comp_indices])
         # and values row[-1]
-        arr_gen = self._split_matrix_(arr, indices)
+        arr_gen = self._split_matrix_(arr, columns_info.indices)
         # Before calling the groupby, we have to sort the generator
         # by the tuple of columns (index zero in itemgetter)
         # And since later we will call the group by on group,
@@ -477,13 +525,16 @@ class Table(dict):
         # The above dictionary is dictionary of dictionaries
         # # the first set of names is for parent dictionary
         # and the second set is for children
-        return (
-            grouped_arr,
-            indices_names,
-            comp_names,
+        return Table(
+            {
+                key: Table(values, columns_info.complimnet_names, _internal_=True)
+                for key, values in grouped_arr.items()
+            },
+            columns_info.indices_names,
+            _internal_=True,
         )
 
-    def _reduce_(self, **kwargs):
+    def reduce(self, **kwargs):
         """Reduce the Table by one or more columns.
 
         Args:
@@ -501,7 +552,7 @@ class Table(dict):
         """
         # split columns to indices and comp_indices
         columns = list(kwargs.keys())
-        (indices, _, comp_indices, comp_names) = self.columns.split_columns(*columns)
+        columns_info = self.columns.split_columns(*columns)
         values = np.array([value for _, value in kwargs.items()], dtype=np.object)
         #
         # Convert the key:values to 2D numpy array
@@ -510,11 +561,11 @@ class Table(dict):
         # filter the 2d array rows by provided values of the reduce
         # conditioned_arr is a boolean one, and filtering happens
         # in the second line
-        conditioned_arr = np.all(arr_counter[:, indices] == values, axis=1)
+        conditioned_arr = np.all(arr_counter[:, columns_info.indices] == values, axis=1)
         sliced_arr = arr_counter[conditioned_arr, :]
         # filter the 2d array columns (the compliment columns)
         # plus the value column (which is the last column)
-        sliced_arr = sliced_arr[:, comp_indices + [-1]]
+        sliced_arr = sliced_arr[:, columns_info.complimnet_indices + [-1]]
         # divide the 2d array's rows to a tuple of columns
         # and value
         # So, we make a generator that divide the rows to the tuple of
@@ -527,12 +578,13 @@ class Table(dict):
         # columns) and sum the value per key
         # Note that the 'itemgetter' read the first index which
         # is the tuple of compliment columns
-        return (
+        return Table(
             {
                 k: sum([item[1] for item in g])
                 for k, g in groupby(sorted_slice_arr, key=itemgetter(0))
             },
-            comp_names,
+            columns_info.complimnet_names,
+            _internal_=True,
         )
 
     def get(self, *args, **kwargs):
@@ -578,40 +630,6 @@ class Table(dict):
 
         return f"{header}\n{horizontal_line}\n{rows}"
 
-    def marginal(self, *args):
-        """Marginalize the Table over a set of columns.
-
-        Args:
-            args (list):
-                List of column names to marginalised.
-
-        Raises:
-            ValueError:
-                Raises when one of the column names is
-                not defined.
-                Or raises when requested for all column names.
-
-        Returns:
-            Table: A new marginalised Table.
-        """
-        (rows, names) = self._group_by_(*args)
-        return Table(rows, names, _internal_=True)
-
-    def reduce(self, **kwargs):
-        (rows, names) = self._reduce_(**kwargs)
-        return Table(rows, names, _internal_=True)
-
-    def condition_on(self, *args):
-        (rows, names, children_names) = self._group_on_(*args)
-        return Table(
-            {
-                key: Table(values, children_names, _internal_=True)
-                for key, values in rows.items()
-            },
-            names,
-            _internal_=True,
-        )
-
     def add(self, that):
         """Combines two FrequencyTable and return
         a new one. All the frequencies are sum together.
@@ -650,17 +668,17 @@ class Table(dict):
 
         if isinstance(right, Number):
             (rows, names) = self._product_by_number_(right)
-        else:
-            (rows, names) = self._product_(right)
+            return Table(rows, names, _internal_=True)
+
+        (rows, names) = self._product_(right)
 
         # For table of table or P(x)P(Y|X)
         # we turn it back to table of P(X,Y)
         first_row_value = next(iter(rows.values()))
         if isinstance(first_row_value, Table):
             (rows, names) = self._merge_(rows, names)
-            return Table(rows, names, _internal_=True)
-        else:
-            return Table(rows, names, _internal_=True)
+
+        return Table(rows, names, _internal_=True)
 
     def __rmul__(self, left):
         if not isinstance(left, (Table, Number)):
@@ -668,8 +686,13 @@ class Table(dict):
 
         if isinstance(left, Number):
             (rows, names) = self._product_by_number_(left)
-        else:
-            (rows, names) = left._product_(self)
+            return Table(rows, names, _internal_=True)
+
+        # For table of table or P(x)P(Y|X)
+        # we turn it back to table of P(X,Y)
+        first_row_value = next(iter(rows.values()))
+        if isinstance(first_row_value, Table):
+            (rows, names) = self._merge_(rows, names)
 
         return Table(rows, names, _internal_=True)
 

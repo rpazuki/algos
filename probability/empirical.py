@@ -510,11 +510,11 @@ class FrequencyTable2(Table):
         Returns:
             Table: A new marginalised Table.
         """
-        (rows, names) = self.group_by(*args)
+        (rows, names) = self.marginal(*args)
         return FrequencyTable2(rows, names, consistencies=False, _internal_=True)
 
     def condition_on(self, *args):
-        (rows, names, children_names) = self.group_on(*args)
+        (rows, names, children_names) = self.condition_on(*args)
         return FrequencyTable2(
             {
                 key: FrequencyTable2(

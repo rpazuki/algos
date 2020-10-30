@@ -23,7 +23,7 @@ def test_conditional_on_table():
         ("b", "y", 2, 44): 16,
     }
     table1 = Table(samples, names=["X1", "X2", "X3", "X4"])
-    con_table1 = table1.group_on("X2")
+    con_table1 = table1.condition_on("X2")
     assert all(compare(con_table1.names, ["X2"]))
     for x2 in con_table1.keys():
         child_table = con_table1[x2]

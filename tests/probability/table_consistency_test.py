@@ -61,7 +61,7 @@ def test_statistical_independence_table():
     marginals = []
     for name in joint_dist.names:
         names_except_one = list(set(joint_dist.names) - {name})
-        marginal = joint_dist.group_by(*names_except_one)
+        marginal = joint_dist.marginal(*names_except_one)
         marginals.append(marginal)
 
     joint_dist2 = np.product(marginals)
@@ -123,10 +123,10 @@ def test_factoring_table():
     # Normalise First
     table1 = normalise(table1)
     #
-    table2 = table1.group_by("Y2", "Y3", "Y4")
+    table2 = table1.marginal("Y2", "Y3", "Y4")
     table2 = normalise(table2)
     #
-    table3 = table1.group_on("Y1")
+    table3 = table1.condition_on("Y1")
     table3 = Table({k: normalise(v) for k, v in table3.items()}, table3.names)
     #
     table4 = table3 * table2
@@ -137,9 +137,9 @@ def test_factoring_table():
     for k in table1:
         assert table5[k] == approx(table1[k], abs=1e-16)
     # On two columns
-    table6 = table1.group_by("Y3", "Y4")
+    table6 = table1.marginal("Y3", "Y4")
     table6 = normalise(table6)
-    table7 = table1.group_on("Y1", "Y2")
+    table7 = table1.condition_on("Y1", "Y2")
     table7 = Table({k: normalise(v) for k, v in table7.items()}, table7.names)
 
     table8 = table6 * table7
@@ -150,9 +150,9 @@ def test_factoring_table():
     for k in table1:
         assert table9[k] == approx(table1[k], abs=1e-16)
     # On Three columns
-    table10 = table1.group_by("Y4")
+    table10 = table1.marginal("Y4")
     table10 = normalise(table10)
-    table11 = table1.group_on("Y1", "Y2", "Y3")
+    table11 = table1.condition_on("Y1", "Y2", "Y3")
     table11 = Table({k: normalise(v) for k, v in table11.items()}, table11.names)
 
     table12 = table10 * table11

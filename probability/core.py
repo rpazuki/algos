@@ -236,8 +236,10 @@ class Table(dict):
             self.columns = TableColumns(
                 names=names, children_names=value_sample.names, table=self
             )
+            self.children_names = value_sample.names
         else:
             self.columns = TableColumns(names=names, children_names=[], table=self)
+            self.children_names = []
 
     def __missing__(self, key):
         return None
@@ -425,8 +427,8 @@ class Table(dict):
         ]
         return (prodcut_dict, combined_names)
 
-    def group_by(self, *args):
-        """group by the Table over a set of columns.
+    def marginal(self, *args):
+        """Marginal of (group by) the Table over a set of columns.
 
         Args:
             args (list):
@@ -441,19 +443,34 @@ class Table(dict):
         Returns:
             Table: (rows, names).
         """
+        if self.columns.is_multitable():
+            for name in args:
+                if name in self.names:
+                    raise ValueError(
+                        f"Cannot marginalize on conditioned columns:'{name}'."
+                    )
+
+            return Table(
+                {k: table.marginal(*args) for k, table in self.items()},
+                self.names,
+                _internal_=True,
+            )
+
+        # check the validity of operation based on column names
         if len(args) == self.columns.size:
             raise ValueError("Cannot marginalize on all column names.")
         # split columns to indices and comp_indices
         columns_info = self.columns.split_columns(*args)
+        #
         # Convert the key:values to 2D numpy array
         # the array rows are (row, value)
         arr = self._to_2d_array_()
         # filter the compliment columns
         filtered_arr = np.c_[arr[:, columns_info.complimnet_indices], arr[:, -1]]
-        # divide the 2d array's rows to a tuple of
+        # split the 2d array's rows to a tuple of
         # compliment columns (row[comp_indices])
         # and count row[-1]
-        arr_gen = self._split_matrix_(filtered_arr)
+        arr_gen = ((RowKey(row[:-1]), row[-1]) for row in filtered_arr)
         # Before calling the groupby, we have to sort the generator
         # by the tuple of compliment columns (index zero in itemgetter)
         sorted_arr = sorted(arr_gen, key=itemgetter(0))
@@ -469,7 +486,7 @@ class Table(dict):
         }
         return Table(grouped_arr, columns_info.complimnet_names, _internal_=True)
 
-    def group_on(self, *args):
+    def condition_on(self, *args):
         """Creates the conditional based on
            the provided names of columns.
 

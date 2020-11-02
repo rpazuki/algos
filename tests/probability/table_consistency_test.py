@@ -1,6 +1,6 @@
 from pytest import approx
 import numpy as np
-from probability.core import Table
+from probability import Table
 
 
 def test_statistical_independence_table():

@@ -1,5 +1,5 @@
 from collections import Counter
-from probability.core import Table
+from probability import Table
 
 
 def test_constructor_table():

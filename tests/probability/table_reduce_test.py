@@ -1,5 +1,5 @@
 import pytest
-from probability.core import Table
+from probability import Table
 from tests.helpers import compare
 
 samples = {

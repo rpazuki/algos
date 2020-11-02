@@ -1,5 +1,5 @@
 import pytest
-from probability.core import Table
+from probability import Table
 
 
 def test_add_exception_table():

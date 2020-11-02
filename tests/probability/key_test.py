@@ -1,4 +1,4 @@
-from probability.core import RowKey
+from probability import RowKey
 
 
 def test_conversion_key():

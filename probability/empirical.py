@@ -1,8 +1,8 @@
 from collections import Counter
 import numpy as np
-from probability.core import RowKey
-from probability.core import Table
-from probability.core import Distribution
+from probability import RowKey
+from probability import Table
+from probability.core_1 import Distribution
 
 
 class FrequencyTable(Distribution):

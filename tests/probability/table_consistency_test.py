@@ -114,51 +114,38 @@ def test_factoring_table():
         (2, "low", "obese", "y"): 2 * 2 * 4 * 3,
     }
 
+    def assert_all(table1, table2):
+        for key1 in table1:
+            key2_dict = table1.columns.named_key(key1)
+            assert table1[key1] == approx(table2.get(**key2_dict))
+
     table1 = Table(s_1, names=["Y1", "Y2", "Y3", "Y4"])
-
-    def normalise(table):
-        total = sum(table.values())
-        return Table({k: v / total for k, v in table.items()}, table.names)
-
-    # Normalise First
-    table1 = normalise(table1)
+    table1.normalise()
     #
     table2 = table1.marginal("Y2", "Y3", "Y4")
-    table2 = normalise(table2)
     #
     table3 = table1.condition_on("Y1")
-    table3 = Table({k: normalise(v) for k, v in table3.items()}, table3.names)
     #
     table4 = table3 * table2
-    for k in table1:
-        assert table4[k] == approx(table1[k], abs=1e-16)
+    assert_all(table4, table1)
 
     table5 = table2 * table3
-    for k in table1:
-        assert table5[k] == approx(table1[k], abs=1e-16)
+    assert_all(table5, table1)
     # On two columns
     table6 = table1.marginal("Y3", "Y4")
-    table6 = normalise(table6)
     table7 = table1.condition_on("Y1", "Y2")
-    table7 = Table({k: normalise(v) for k, v in table7.items()}, table7.names)
 
     table8 = table6 * table7
-    for k in table1:
-        assert table8[k] == approx(table1[k], abs=1e-16)
+    assert_all(table8, table1)
 
     table9 = table7 * table6
-    for k in table1:
-        assert table9[k] == approx(table1[k], abs=1e-16)
+    assert_all(table9, table1)
     # On Three columns
     table10 = table1.marginal("Y4")
-    table10 = normalise(table10)
     table11 = table1.condition_on("Y1", "Y2", "Y3")
-    table11 = Table({k: normalise(v) for k, v in table11.items()}, table11.names)
 
     table12 = table10 * table11
-    for k in table1:
-        assert table12[k] == approx(table1[k], abs=1e-16)
+    assert_all(table12, table1)
 
     table13 = table11 * table10
-    for k in table1:
-        assert table13[k] == approx(table1[k], abs=1e-16)
+    assert_all(table13, table1)

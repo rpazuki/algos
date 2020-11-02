@@ -1,5 +1,4 @@
 from collections import Counter
-from numbers import Number
 import numpy as np
 from probability.core import RowKey
 from probability.core import Table

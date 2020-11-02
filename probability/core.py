@@ -1,9 +1,9 @@
 from abc import ABC  # , abstractmethod
 from collections.abc import Mapping, Iterable
 from collections import namedtuple
+from collections import ChainMap
 from itertools import groupby
 from operator import itemgetter
-from numbers import Number
 import numpy as np
 
 ColumnsInfo = namedtuple(
@@ -102,6 +102,9 @@ class TableColumns(Iterable):
             for key, value in zip(self.names, self.to_key(*args, **kwargs))
         }
 
+    def named_key(self, key):
+        return {name: key[i] for i, name in enumerate(self.names)}
+
     def __getitem__(self, index):
         """An indexer by position (int) or name (str).
 
@@ -165,7 +168,7 @@ class TableColumns(Iterable):
         by_names = args
         for name in by_names:
             if name not in self.names and name not in self.children_names:
-                raise ValueError(f"Column name: '{name}'' is not defined.")
+                raise ValueError(f"Column name: '{name}' is not defined.")
 
         indices = [i for i, name in enumerate(self.names) if name in by_names]
         indices_names = [self.names[i] for i in indices]
@@ -181,13 +184,34 @@ class TableColumns(Iterable):
             complimnet_names=comp_names,
         )
 
+    def contains_child(self, name):
+        return name in self.children_names
+
 
 class Table(dict):
-    def __init__(self, rows, names=None, _internal_=False):
+    def __init__(self, rows, names=None, _internal_=False, _children_names_=None):
 
         if _internal_:
+            # rows are dictionary for internal calls
             key_values = rows
-            self._row_sample_ = next(iter(rows))
+            try:
+                self._row_sample_ = next(iter(rows))
+            except StopIteration:
+                # Rows are empty
+                super().__init__(key_values)
+                self._row_sample_ = None
+                self.names = names
+                if _children_names_ is None:
+                    self.children_names = []
+                    self.columns = TableColumns(
+                        names=names, children_names=[], table=self
+                    )
+                else:
+                    self.children_names = _children_names_
+                    self.columns = TableColumns(
+                        names=names, children_names=_children_names_, table=self
+                    )
+                return
         else:
             if isinstance(rows, Mapping):
                 key_values = [(RowKey(k), value) for k, value in rows.items()]
@@ -214,8 +238,14 @@ class Table(dict):
             )
             self.children_names = value_sample.names
         else:
-            self.columns = TableColumns(names=names, children_names=[], table=self)
-            self.children_names = []
+            if _children_names_ is None:
+                self.children_names = []
+                self.columns = TableColumns(names=names, children_names=[], table=self)
+            else:
+                self.children_names = _children_names_
+                self.columns = TableColumns(
+                    names=names, children_names=_children_names_, table=self
+                )
 
     def __missing__(self, key):
         return None
@@ -266,9 +296,6 @@ class Table(dict):
                 is the counts.
         """
         return np.array([k + (v,) for k, v in self.items()], dtype=np.object)
-
-    def _product_by_number_(self, value):
-        return ({k1: v1 * value for k1, v1 in self.items()}, self.names.copy())
 
     def _product_(self, right):
         """Multiply two Tables.
@@ -361,14 +388,14 @@ class Table(dict):
 
         # names are the combination of [left_names, right_compelements_names]
         combined_names = np.r_[
-            [name for name in self.names],
+            self.names,
             [name for name in right.names if name not in commons],
         ]
         return (prodcut_dict, combined_names)
 
     def marginal(self, *args, normalise=True):
         """Marginal of (group by) the Table over a set of columns.
-
+           P(X, Y, Z) -> P(X, Y) or P(X, Z) or P(Y, Z)
         Args:
             args (list):
                 List of column names to marginalised.
@@ -382,60 +409,36 @@ class Table(dict):
         Returns:
             Table: (rows, names).
         """
+        # check the validity of operation based on column names
+        if len(args) == self.columns.size:
+            raise ValueError("Cannot marginalize on all column names.")
 
-        #############################################
-        #  Algorithm
-
-        def marginal_internal(table):
-            #############################################
-            # check the validity of operation based on column names
-            if len(args) == table.columns.size:
-                raise ValueError("Cannot marginalize on all column names.")
-
-            # split columns to indices and comp_indices
-            columns_info = table.columns.split_columns(*args)
-            #
-            # Convert the key:values to 2D numpy array
-            # the array rows are (row, value)
-            arr = table.to_2d_array()
-            # filter the compliment columns
-            filtered_arr = np.c_[arr[:, columns_info.complimnet_indices], arr[:, -1]]
-            # split the 2d array's rows to a tuple of
-            # compliment columns (row[comp_indices])
-            # and count row[-1]
-            arr_gen = ((RowKey(row[:-1]), row[-1]) for row in filtered_arr)
-            # Before calling the groupby, we have to sort the generator
-            # by the tuple of compliment columns (index zero in itemgetter)
-            sorted_arr = sorted(arr_gen, key=itemgetter(0))
-            # since the values in each 'group' are
-            # (compliment columns, value)
-            # here we group by 'compliment columns' and apply
-            # the sum on the value. Then the dictionary of
-            # compliment columns:op_of_values
-            # is an acceptable argument for Table
-            grouped_arr = {
-                k: sum([item[1] for item in g])
-                for k, g in groupby(sorted_arr, key=itemgetter(0))
-            }
-            return Table(grouped_arr, columns_info.complimnet_names, _internal_=True)
-
-        ############################################
-        # MultiTable handeling
-        if self.columns.is_multitable():
-            for name in args:
-                if name in self.names:
-                    raise ValueError(
-                        f"Cannot marginalize on conditioned columns:'{name}'."
-                    )
-
-            table = Table(
-                {k: marginal_internal(table) for k, table in self.items()},
-                self.names,
-                _internal_=True,
-            )
-        else:
-            table = marginal_internal(self)
-
+        # split columns to indices and comp_indices
+        columns_info = self.columns.split_columns(*args)
+        #
+        # Convert the key:values to 2D numpy array
+        # the array rows are (row, value)
+        arr = self.to_2d_array()
+        # filter the compliment columns
+        filtered_arr = np.c_[arr[:, columns_info.complimnet_indices], arr[:, -1]]
+        # split the 2d array's rows to a tuple of
+        # compliment columns (row[comp_indices])
+        # and count row[-1]
+        arr_gen = ((RowKey(row[:-1]), row[-1]) for row in filtered_arr)
+        # Before calling the groupby, we have to sort the generator
+        # by the tuple of compliment columns (index zero in itemgetter)
+        sorted_arr = sorted(arr_gen, key=itemgetter(0))
+        # since the values in each 'group' are
+        # (compliment columns, value)
+        # here we group by 'compliment columns' and apply
+        # the sum on the value. Then the dictionary of
+        # compliment columns:op_of_values
+        # is an acceptable argument for Table
+        grouped_arr = {
+            k: sum([item[1] for item in g])
+            for k, g in groupby(sorted_arr, key=itemgetter(0))
+        }
+        table = Table(grouped_arr, columns_info.complimnet_names, _internal_=True)
         if normalise:
             table.normalise()
 
@@ -444,7 +447,7 @@ class Table(dict):
     def condition_on(self, *args, normalise=True):
         """Creates the conditional based on
            the provided names of columns.
-
+           P(X, Y) -> P(X | Y) or P(Y | X)
         Args:
             args (list):
                 List of names of provided random
@@ -456,100 +459,69 @@ class Table(dict):
                 in the distribution.
 
         Returns:
-            (row, names)
+            MultiTable
         """
-        #############################################
-        #  Algorithm
+        if self.columns.size == 1:
+            raise ValueError("This is a single column Table and cannot condition on.")
 
-        def condition_on_internal(table):
-            if table.columns.size == 1:
-                raise ValueError(
-                    "This is a single column Table and cannot condition on."
-                )
-
-            if len(args) == table.columns.size:
-                raise ValueError("Cannot condition on all columns.")
-            # split columns to indices and comp_indices
-            columns_info = table.columns.split_columns(*args)
-            # Convert the key:value to 2D numpy array
-            # the array rows are (rows, value)
-            arr = table.to_2d_array()
-            # divide the 2d array's rows to a tuple of columns,
-            # (row[indices]), compliment columns (row[comp_indices])
-            # and values row[-1]
-            arr_gen = (
-                (
-                    RowKey(row[columns_info.indices]),
-                    RowKey(row[columns_info.complimnet_indices]),
-                    row[-1],
-                )
-                for row in arr
+        if len(args) == self.columns.size:
+            raise ValueError("Cannot condition on all columns.")
+        # split columns to indices and comp_indices
+        columns_info = self.columns.split_columns(*args)
+        # Convert the key:value to 2D numpy array
+        # the array rows are (rows, value)
+        arr = self.to_2d_array()
+        # divide the 2d array's rows to a tuple of columns,
+        # (row[indices]), compliment columns (row[comp_indices])
+        # and values row[-1]
+        arr_gen = (
+            (
+                RowKey(row[columns_info.indices]),
+                RowKey(row[columns_info.complimnet_indices]),
+                row[-1],
             )
-            # Before calling the groupby, we have to sort the generator
-            # by the tuple of columns (index zero in itemgetter)
-            # And since later we will call the group by on group,
-            # for each key we do the inner sort too (index one in itemgetter)
-            sorted_arr = sorted(arr_gen, key=itemgetter(0, 1))
-            # This method convert a group to a dictionary
+            for row in arr
+        )
+        # Before calling the groupby, we have to sort the generator
+        # by the tuple of columns (index zero in itemgetter)
+        # And since later we will call the group by on group,
+        # for each key we do the inner sort too (index one in itemgetter)
+        sorted_arr = sorted(arr_gen, key=itemgetter(0, 1))
+        # This method convert a group to a dictionary
 
-            def make_dict(group):
-                # since the values in 'group' argument are
-                # (columns, compliment columns, value)
-                # here we group by 'compliment columns' and sum
-                # the values.
-                return {
-                    k: sum([item[2] for item in g2])
-                    for k, g2 in groupby(group, key=itemgetter(1))
-                }
-
-            # For each group (belongs a unique values), we create
-            # a dictionary in a dictionary comprehension
-            grouped_arr = {
-                k: make_dict(g) for k, g in groupby(sorted_arr, key=itemgetter(0))
+        def make_dict(group):
+            # since the values in 'group' argument are
+            # (columns, compliment columns, value)
+            # here we group by 'compliment columns' and sum
+            # the values.
+            return {
+                k: sum([item[2] for item in g2])
+                for k, g2 in groupby(group, key=itemgetter(1))
             }
-            # The above dictionary is dictionary of dictionaries
-            # # the first set of names is for parent dictionary
-            # and the second set is for children
-            table = Table(
-                {
-                    key: Table(values, columns_info.complimnet_names, _internal_=True)
-                    for key, values in grouped_arr.items()
-                },
-                columns_info.indices_names,
-                _internal_=True,
-            )
-            if normalise:
-                table.normalise()
 
-            return table
+        # For each group (belongs a unique values), we create
+        # a dictionary in a dictionary comprehension
+        grouped_arr = {
+            k: make_dict(g) for k, g in groupby(sorted_arr, key=itemgetter(0))
+        }
+        # The above dictionary is dictionary of dictionaries
+        # # the first set of names is for parent dictionary
+        # and the second set is for children
+        table = MultiTable(
+            {
+                key: Table(values, columns_info.complimnet_names, _internal_=True)
+                for key, values in grouped_arr.items()
+            },
+            columns_info.indices_names,
+        )
+        if normalise:
+            table.normalise()
 
-        ############################################
-        # MultiTable handeling
-        if self.columns.is_multitable():
-            for name in args:
-                if name in self.names:
-                    raise ValueError(
-                        f"Cannot condition on conditioned columns:'{name}'."
-                    )
-            conditioned_children = (
-                (k, condition_on_internal(table)) for k, table in self.items()
-            )
-
-            return Table(
-                {
-                    key2 + key1: table
-                    for key1, key2_table in conditioned_children
-                    for key2, table in key2_table.items()
-                },
-                list(args) + self.names,
-                _internal_=True,
-            )
-        else:
-            return condition_on_internal(self)
+        return table
 
     def reduce(self, **kwargs):
         """Reduce the Table by one or more columns.
-
+           P(X, Y) -> P(X = x, Y) or  P(X,  Y = y)
         Args:
             kwargs (dict):
                 A dictionary that its 'key' is the name
@@ -563,62 +535,44 @@ class Table(dict):
         Returns:
             [Table]: A reduce Table.
         """
-        #############################################
-        #  Algorithm
-
-        def reduce_internal(table):
-            # split columns to indices and comp_indices
-            columns = list(kwargs.keys())
-            if len(columns) == table.columns.size:
-                raise ValueError("Cannot reduce on all column names.")
-            columns_info = table.columns.split_columns(*columns)
-            values = np.array([value for _, value in kwargs.items()], dtype=np.object)
-            #
-            # Convert the key:values to 2D numpy array
-            # the array rows are (keys, value)
-            arr_counter = table.to_2d_array()
-            # filter the 2d array rows by provided values of the reduce
-            # conditioned_arr is a boolean one, and filtering happens
-            # in the second line
-            conditioned_arr = np.all(
-                arr_counter[:, columns_info.indices] == values, axis=1
-            )
-            sliced_arr = arr_counter[conditioned_arr, :]
-            # filter the 2d array columns (the compliment columns)
-            # plus the value column (which is the last column)
-            sliced_arr = sliced_arr[:, columns_info.complimnet_indices + [-1]]
-            # divide the 2d array's rows to a tuple of columns
-            # and value
-            # So, we make a generator that divide the rows to the tuple of
-            # columns (tuple(row[:-1]) and value (row[-1])
-            arr_gen = ((RowKey(row[:-1]), row[-1]) for row in sliced_arr)
-            # Before calling the groupby, we have to sort the generator
-            # by the tuple of column (index zero in itemgetter)
-            sorted_slice_arr = sorted(arr_gen, key=itemgetter(0))
-            # group by the filtered columns (compliment
-            # columns) and sum the value per key
-            # Note that the 'itemgetter' read the first index which
-            # is the tuple of compliment columns
-            return Table(
-                {
-                    k: sum([item[1] for item in g])
-                    for k, g in groupby(sorted_slice_arr, key=itemgetter(0))
-                },
-                columns_info.complimnet_names,
-                _internal_=True,
-            )
-
-        ############################################
-        # MultiTable handeling
-        if self.columns.is_multitable():
-
-            return Table(
-                {k: reduce_internal(table) for k, table in self.items()},
-                self.names,
-                _internal_=True,
-            )
-        else:
-            return reduce_internal(self)
+        # split columns to indices and comp_indices
+        columns = list(kwargs.keys())
+        if len(columns) == self.columns.size:
+            raise ValueError("Cannot reduce on all column names.")
+        columns_info = self.columns.split_columns(*columns)
+        values = np.array([value for _, value in kwargs.items()], dtype=np.object)
+        #
+        # Convert the key:values to 2D numpy array
+        # the array rows are (keys, value)
+        arr_counter = self.to_2d_array()
+        # filter the 2d array rows by provided values of the reduce
+        # conditioned_arr is a boolean one, and filtering happens
+        # in the second line
+        conditioned_arr = np.all(arr_counter[:, columns_info.indices] == values, axis=1)
+        sliced_arr = arr_counter[conditioned_arr, :]
+        # filter the 2d array columns (the compliment columns)
+        # plus the value column (which is the last column)
+        sliced_arr = sliced_arr[:, columns_info.complimnet_indices + [-1]]
+        # divide the 2d array's rows to a tuple of columns
+        # and value
+        # So, we make a generator that divide the rows to the tuple of
+        # columns (tuple(row[:-1]) and value (row[-1])
+        arr_gen = ((RowKey(row[:-1]), row[-1]) for row in sliced_arr)
+        # Before calling the groupby, we have to sort the generator
+        # by the tuple of column (index zero in itemgetter)
+        sorted_slice_arr = sorted(arr_gen, key=itemgetter(0))
+        # group by the filtered columns (compliment
+        # columns) and sum the value per key
+        # Note that the 'itemgetter' read the first index which
+        # is the tuple of compliment columns
+        return Table(
+            {
+                k: sum([item[1] for item in g])
+                for k, g in groupby(sorted_slice_arr, key=itemgetter(0))
+            },
+            columns_info.complimnet_names,
+            _internal_=True,
+        )
 
     def get(self, *args, **kwargs):
         key = self.columns.to_key(*args, **kwargs)
@@ -742,44 +696,439 @@ class Table(dict):
                     self[k] /= total
 
     def __mul__(self, right):
+        """Multiplies a table with this one.
+           P(X, Y) * k -> P(X, Y)
+           P(X) * P(Y, Z) -> P(X, Y, Z)
+        Args:
+            right ([type]): [description]
 
-        if not isinstance(right, (Table, Number)):
-            raise ValueError("The 'right' argument must be a 'Table' or 'Number'.")
+        Raises:
+            ValueError: [description]
 
-        if isinstance(right, Number):
-            (rows, names) = self._product_by_number_(right)
-            return Table(rows, names, _internal_=True)
+        Returns:
+            [type]: [description]
+        """
+
+        if not isinstance(right, Table):
+            raise ValueError("The 'right' argument must be a 'Table'.")
 
         (rows, names) = self._product_(right)
-
-        # For table of table or P(x)P(Y|X)
-        # we turn it back to table of P(X,Y)
-        first_row_value = next(iter(rows.values()))
-        if isinstance(first_row_value, Table):
-            rows = {k1 + k2: v2 for k1, v1 in rows.items() for k2, v2 in v1.items()}
-            names = list(names) + first_row_value.names
-
         return Table(rows, names, _internal_=True)
 
     def __rmul__(self, left):
-        if not isinstance(left, (Table, Number)):
-            raise ValueError("The 'right' argument must be a 'Table' or 'Number'.")
+        """Multiplies a table with this one.
+           k * P(X, Y) -> P(X, Y)
+           P(X) * P(Y, Z) -> P(X, Y, Z)
+        Args:
+            right ([type]): [description]
 
-        if isinstance(left, Number):
-            (rows, names) = self._product_by_number_(left)
-            return Table(rows, names, _internal_=True)
+        Raises:
+            ValueError: [description]
 
-        # For table of table or P(x)P(Y|X)
-        # we turn it back to table of P(X,Y)
-        first_row_value = next(iter(rows.values()))
-        if isinstance(first_row_value, Table):
-            rows = {k1 + k2: v2 for k1, v1 in rows.items() for k2, v2 in v1.items()}
-            names = list(names) + first_row_value.names
+        Returns:
+            [type]: [description]
+        """
+        if not isinstance(left, Table):
+            raise ValueError("The 'right' argument must be a 'Table'.")
 
+        (rows, names) = left._product_(self)
         return Table(rows, names, _internal_=True)
 
     def __add__(self, right):
         return self.add(right)
+
+
+def prod_right(table, key2, value2):
+    # Product a table with kay and value
+    if value2 is None:
+        return {}
+    return {key1 + key2: value1 * value2 for key1, value1 in table.items()}
+
+
+def prod_left(table, key2, value2):
+    # Product a table with kay and value
+    if value2 is None:
+        return {}
+    return {key2 + key1: value1 * value2 for key1, value1 in table.items()}
+
+
+def multi_table_to_table_product(left, right, all_ordered_names):
+    """Multiply two tables.
+    P(X, Y | Z) * P(Z) -> P(X, Y, Z)
+    P(X, Y | Z, W) * P(Z) -> P(X, Y, Z | W)
+    """
+    # Case P(X, Y | Z) * P(Z) -> P(X, Y, Z)
+    if list(left.names) == list(right.names):
+        return Table(
+            ChainMap(
+                *[
+                    prod_right(table, key2=k, value2=right[k])
+                    for k, table in left.items()
+                ]
+            ),
+            left.columns.children_names + left.names,
+            _internal_=True,
+        )
+    # Case P(X, Y | Z, W) * P(Z) -> P(X, Y, Z | W)
+    for name in right.names:
+        if not left.columns:
+            raise ValueError(
+                f"Column name '{name}'in right table is not defined on "
+                "conditioned columns of the left Table (name mismatched)."
+            )
+    # e.g. P(X, Y | Z, W) * P(Z) : indices of [W]
+    indices = [i for i, name in enumerate(left.names) if name not in right.names]
+    # e.g. P(X, Y | Z, W) * P(Z) : indices of [Z]
+    compliment_indices = [i for i in range(left.columns.size) if i not in indices]
+    # e.g. P(X, Y | Z, W) * P(Z) : [W]
+    reduced_names = [left.names[i] for i in indices]
+    children_names = [
+        names for names in all_ordered_names if names not in reduced_names
+    ]
+
+    def reduced_key(key):
+        # Method to split the keys
+        return {left.names[i]: key[i] for i in indices}
+
+    def compliment_key(key):
+        # Method to make a split key
+        return RowKey(*[key[i] for i in compliment_indices])
+
+    # Case: P(X, Y | Z, W) * P(Z) -> P(X, Y, Z | W)
+    if right.columns.size == len(indices):
+        return MultiTable(
+            ChainMap(
+                *[
+                    prod_right(table, key2=k, value2=right[k])
+                    for k, table in left.items()
+                ]
+            ),
+            reduced_names,
+            _children_names_=children_names,
+        )
+
+    return MultiTable(
+        {
+            compliment_key(k): table * right.reduce(**reduced_key(k))
+            for k, table in left.items()
+        },
+        reduced_names,
+        _children_names_=children_names,
+    )
+
+
+def table_to_multi_table_product(left, right, all_ordered_names):
+    """Multiply two tables.
+    P(Z) * P(X, Y | Z)  -> P(Z, X, Y)
+    P(Z) * P(X, Y | Z, W) -> P(Z, X, Y | W)
+    """
+    # Case P(Z) * P(X, Y | Z) -> P(Z, X, Y)
+    if list(left.names) == list(right.names):
+        return Table(
+            ChainMap(
+                *[
+                    prod_left(table, key2=k, value2=left[k])
+                    for k, table in right.items()
+                ]
+            ),
+            right.names + right.columns.children_names,
+            _internal_=True,
+        )
+    # Case P(Z) * P(X, Y | Z, W) -> P(Z, X, Y | W)
+    for name in left.names:
+        if not right.columns:
+            raise ValueError(
+                f"Column name '{name}'in left table is not defined on "
+                "conditioned columns of the right Table (name mismatched)."
+            )
+    # e.g. P(Z) * P(X, Y | Z, W) : indices of [W]
+    indices = [i for i, name in enumerate(right.names) if name not in left.names]
+    # e.g. P(Z) * P(X, Y | Z, W) : indices of [Z]
+    compliment_indices = [i for i in range(right.columns.size) if i not in indices]
+    # e.g. P(Z) * P(X, Y | Z, W) : [W]
+    reduced_names = [right.names[i] for i in indices]
+    children_names = [
+        names for names in all_ordered_names if names not in reduced_names
+    ]
+
+    def reduced_key(key):
+        # Method to split the keys
+        return {right.names[i]: key[i] for i in indices}
+
+    def compliment_key(key):
+        # Method to make a split key
+        return RowKey(*[key[i] for i in compliment_indices])
+
+    # Case: P(Z) * P(X, Y | Z, W) -> P(Z, X, Y | W)
+    if left.columns.size == len(indices):
+        return MultiTable(
+            ChainMap(
+                *[
+                    prod_left(table, key2=k, value2=left[k])
+                    for k, table in right.items()
+                ]
+            ),
+            reduced_names,
+            _children_names_=children_names,
+        )
+
+    return MultiTable(
+        {
+            compliment_key(k): table * left.reduce(**reduced_key(k))
+            for k, table in right.items()
+        },
+        reduced_names,
+        _children_names_=children_names,
+    )
+
+
+def multi_table_to_multi_table_product(table_main, table_side, all_ordered_names):
+    indices = [
+        i for i, name in enumerate(table_main.names) if name not in table_side.names
+    ]
+    compliment_indices = [i for i in range(table_main.columns.size) if i not in indices]
+    reduced_names = [table_main.names[i] for i in compliment_indices]
+    children_names = [
+        names for names in all_ordered_names if names not in reduced_names
+    ]
+
+    def reduced_key(key):
+        # Method to split the keys
+        return {table_main.names[i]: key[i] for i in indices}
+
+    def compliment_key(key):
+        # Method to split the keys
+        return RowKey(*[key[i] for i in compliment_indices])
+
+    if len(table_side.columns.children_names) == len(indices):
+
+        def prod2(key1, table1):
+            table_side_table2 = table_side[key1]
+            if table_side_table2 is None:
+                return {}
+            return {
+                compliment_key(key1): table1 * table2
+                for key2, table2 in table_side_table2
+            }
+
+        return MultiTable(
+            ChainMap(*[prod2(key1, table1) for key1, table1 in table_main.items()]),
+            reduced_names,
+            _children_names_=children_names,
+        )
+
+    return MultiTable(
+        {
+            compliment_key(key1): table1 * table2
+            for key1, table1 in table_main.items()
+            for key2, table2 in table_side.reduce(**reduced_key(key1))
+        },
+        reduced_names,
+        _children_names_=children_names,
+    )
+
+
+def multi_table_product(left, right):
+    """Multiply two tables.
+        P(X, Y | Z) * P(Z) -> P(X, Y , Z)
+        P(X, Y | Z, W) * P(Z) -> P(X, Y , Z | W)
+        P(X, Y | Z, U) * P(Z | U) -> P(X, Y , Z | U)
+        P(X, Y | Z, U, W) * P(Z | U, W) -> P(X, Y , Z | U, W)
+
+        in the case of two conditionals, the longer one defines
+        the order of variables
+        e.g.
+        P(X, Y | Z, U, W) * P(Z | W, U) -> P(X, Y , Z | U, W)
+        P(Z | W, U) * P(X, Y | Z, U, W) -> P(X, Y , Z | U, W)
+
+
+    Args:
+        left ([type]): [description]
+        right ([type]): [description]
+
+    Raises:
+        ValueError: [description]
+
+    Returns:
+        [type]: [description]
+    """
+    # Cases:
+    # P(X, Y | Z) * P(Z) -> P(X, Y, Z)
+    # P(X, Y | Z, W) * P(Z) -> P(X, Y, Z | W)
+    if not isinstance(right, MultiTable):
+        if sorted(right.names) != sorted(left.names):
+            raise ValueError("The right names is" " not equal to conditionals of left.")
+
+        all_ordered_names = left.columns.children_names + right.columns.names
+        return multi_table_to_table_product(left, right, all_ordered_names)
+
+    # Cases:
+    # P(Z) * P(X, Y | Z) -> P(Z, X, Y)
+    # P(Z) * P(X, Y | Z, W) -> P(Z, X, Y | W)
+    if not isinstance(left, MultiTable):
+        if sorted(right.names) != sorted(left.names):
+            raise ValueError("The left names is" " not equal to conditionals of right.")
+
+        all_ordered_names = left.names + right.columns.children_names
+        return table_to_multi_table_product(left, right, all_ordered_names)
+
+    # Cases:
+    # P(X, Y | Z, U) * P(Z | U) -> P(X, Y, Z | U)
+    # P(X, Y | Z, U, W) * P(Z | U, W) -> P(X, Y, Z | U, W)
+    # P(X, Y, Z|  U, W) * P(U | W) -> P(X, Y, Z, U | W
+    # P(X, Y, Z|  U, V, W) * P(U, V | W) -> P(X, Y, Z, U, V | W)
+    def in_the_other(first, second):
+        for name in first:
+            if name not in second:
+                return False
+        return True
+
+    common_conditions = [name for name in left.names if name in right.names]
+    right_compliment_conditions = [
+        name for name in right.names if name not in common_conditions
+    ]
+    left_compliment_conditions = [
+        name for name in left.names if name not in common_conditions
+    ]
+
+    # To check the crossed cases
+    # e.g. P(X | Y) * P(Y | X)
+    # after removing common names on conditionals,
+    # one of them must remains conditionless
+    # e.g.
+    # 1) P(X, Y | Z, U) * P(Z | U)
+    #    removes commons: P(X, Y | Z) * P(Z)
+    # 2) P(Z | U, W) * P(X, Y | Z, U, W)
+    #    removes commons: P(Z) * P(X, Y | Z)
+    # 3) P(X | Y) * P(Y | X)
+    #    remove commons fails
+    if len(right_compliment_conditions) == 0:
+        if not in_the_other(right.columns.children_names, left.names):
+            raise ValueError(
+                "Columns in right is not defined in conditional names of left."
+            )
+        all_ordered_names = left.columns.children_names + right.columns.children_names
+        return multi_table_to_multi_table_product(left, right, all_ordered_names)
+
+    elif len(left_compliment_conditions) == 0:
+        if not in_the_other(left.columns.children_names, right.names):
+            raise ValueError(
+                "Columns in left is not defined in conditional names of right."
+            )
+        all_ordered_names = left.columns.children_names + right.columns.children_names
+        return multi_table_to_multi_table_product(right, left, all_ordered_names)
+    else:
+        raise ValueError("Columns and conditional names mismatch.")
+
+
+class MultiTable(Table):
+    def __init__(self, rows, names=None, _children_names_=None):
+        super().__init__(
+            rows, names, _internal_=True, _children_names_=_children_names_
+        )
+
+    def marginal(self, *args, normalise=True):
+        """[summary]
+           P(X, Y | Z) -> P(X | Z) or P(Y | Z)
+        Args:
+            normalise (bool, optional): [description]. Defaults to True.
+
+        Raises:
+            ValueError: [description]
+
+        Returns:
+            MultiTable: [description]
+        """
+
+        for name in args:
+            if name in self.names:
+                raise ValueError(f"Cannot marginalize on conditioned columns:'{name}'.")
+
+        table = Table(
+            {
+                k: table.marginal(*args, normalise=normalise)
+                for k, table in self.items()
+            },
+            self.names,
+            _internal_=True,
+        )
+
+        if normalise:
+            table.normalise()
+
+        return table
+
+    def condition_on(self, *args, normalise=True):
+        """Creates the conditional based on
+           the provided names of columns.
+
+           P(X, Y | Z) -> P(X | Y, Z) or P(Y | X, Z)
+
+        Args:
+            args (list):
+                List of names of provided random
+                variables.
+
+        Raises:
+            ValueError:
+                If the provided RV names do not exist
+                in the distribution.
+
+        Returns:
+            (row, names)
+        """
+        for name in args:
+            if name in self.names:
+                raise ValueError(f"Cannot condition on conditioned columns:'{name}'.")
+        conditioned_children = (
+            (k, table.condition_on(*args, normalise=normalise))
+            for k, table in self.items()
+        )
+
+        return MultiTable(
+            {
+                key2 + key1: table
+                for key1, key2_table in conditioned_children
+                for key2, table in key2_table.items()
+            },
+            # It results in: P(X, Y | Z) -> P(X | Y, Z)
+            # inversing the order turns it P(X, Y | Z) -> P(X | Z, Y)
+            # Maybe more controls is needed here
+            list(args) + self.names,
+        )
+
+    def reduce(self, **kwargs):
+        """Reduce the Table by one or more columns.
+            P(X, Y | Z) -> P(X = x, Y | Z) or  P(X,  Y = y | Z)
+        Args:
+            kwargs (dict):
+                A dictionary that its 'key' is the name
+                of the column and its 'value'
+                is the value that must be reduced by.
+
+        Raises:
+            ValueError:
+                If the provided names do not exist in the Table.
+
+        Returns:
+            [Table]: A reduce Table.
+        """
+        return MultiTable(
+            {k: table.reduce(**kwargs) for k, table in self.items()},
+            self.names,
+        )
+
+    def __mul__(self, right):
+        if not isinstance(right, Table):
+            raise ValueError("The 'right' argument must be a 'Table'.")
+
+        return multi_table_product(self, right)
+
+    def __rmul__(self, left):
+        if not isinstance(left, Table):
+            raise ValueError("The 'left' argument must be a 'Table'.")
+
+        return multi_table_product(left, self)
 
 
 class Distribution(ABC, Mapping):

@@ -2,24 +2,17 @@ from collections import Counter
 import numpy as np
 from probability import RowKey
 from probability import Table
-from probability.core_1 import Distribution
 
 
-class FrequencyTable(Distribution):
-    def __init__(self, samples, names=None, consistencies=True, _table_=None):
+class FrequencyTable(Table):
+    def __init__(self, samples, names=None, consistencies=True):
 
-        if _table_ is None:
-            counter = Counter(samples)
-            table = Table(counter, names)
-            #
-            if consistencies:
-                table._check_keys_consistencies_()
-            self.total = sum(counter.values())
-        else:
-            table = _table_
-            self.total = table.total()
+        counter = Counter(samples)
+        super().__init__(counter, names)
         #
-        super().__init__(table)
+        if consistencies:
+            self._check_keys_consistencies_()
+        self.total = sum(counter.values())
 
     @classmethod
     def from_np_array(cls, samples, names=None):
@@ -141,7 +134,7 @@ class FrequencyTable(Distribution):
         return levels_extended[indices]
 
     def freq(self, *args, **kwargs):
-        key = self.to_key(*args, **kwargs)
+        key = self.columns.to_key(*args, **kwargs)
         return self.frequency(key)
 
     def frequency(self, key):
@@ -161,7 +154,7 @@ class FrequencyTable(Distribution):
         return self.__getitem__(key)
 
     def prob(self, *args, **kwargs):
-        key = self.to_key(*args, **kwargs)
+        key = self.columns.to_key(*args, **kwargs)
         return self.probability(key)
 
     def probability(self, key):
@@ -198,10 +191,10 @@ class FrequencyTable(Distribution):
     def summary(self):
         return (
             "Frequency Table \n"
-            f"Column names:'{self.table.names}'\n"
+            f"Column names:'{self.names}'\n"
             f"total:{self.total}\n"
             f"normalised:{np.abs(self.total -1) <= 1e-16}\n"
         )
 
     def to_table(self, sort=False, value_title="Frequency"):
-        return self.table.to_table(sort, value_title)
+        return self.to_table(sort, value_title)

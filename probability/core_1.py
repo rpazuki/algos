@@ -1,5 +1,4 @@
-from abc import ABC  # , abstractmethod
-from collections.abc import Mapping, Iterable
+from collections.abc import Iterable
 from collections import namedtuple
 import numpy as np
 
@@ -171,49 +170,3 @@ class TableColumns(Iterable):
 
     def contains_child(self, name):
         return name in self.children_names
-
-
-class Distribution(ABC, Mapping):
-    def __init__(self, table):
-        self.table = table
-
-    def __len__(self):
-        return self.table.__len__()
-
-    def __getitem__(self, key):
-        value = self.table[key]
-        if value is None:
-            return 0
-
-        return value
-
-    def __iter__(self):
-        return self.table.__iter__()
-
-    def prob(self, *args, **kwargs):
-        key = self.to_key(*args, **kwargs)
-        return self.probability(key)
-
-    def probability(self, key):
-        """Gets the probability of the random variable, when its value is 'key'.
-
-           It return zero if the value is not observed.
-
-        Args:
-            key (object):
-                the value of the random variable.
-
-        Returns:
-            float: probability of the random variable.
-        """
-        return self.__getitem__(key)
-
-    def to_key(self, *args, **kwargs):
-        return self.table.columns.to_key(*args, **kwargs)
-
-    def normalise(self):
-        """Normalise the distribution."""
-        self.table.normalise()
-
-    def to_table(self, sort=False, value_title="Probability"):
-        return self.table.to_table(sort, value_title)

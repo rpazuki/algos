@@ -6,9 +6,6 @@ import numpy as np
 from probability import RowKey
 from probability import TableColumns
 
-# from probability.core_1 import RowKey
-# from probability.core_1 import TableColumns
-
 
 def to_dict(groupby_index, value_index):
     def make_dict(sorted_items):
@@ -452,6 +449,9 @@ class Table(dict):
 
         return f"{header}\n{horizontal_line}\n{rows}"
 
+    def np_values(self):
+        return np.asarray([v for v in self.values()])
+
     def add(self, that):
         """Combines two FrequencyTable and return
         a new one. All the frequencies are sum together.
@@ -509,15 +509,15 @@ class Table(dict):
 
         return add_internal(self.copy(), that, self.names)
 
-    def total(self):
+    def get_total(self):
         if self.columns.is_multitable():
-            return {k: table.total() for k, table in self.items()}
+            return {k: table.get_total() for k, table in self.items()}
 
         return sum(self.values())
 
     def normalise(self):
         if self.columns.is_multitable():
-            for k, total in self.total().items():
+            for k, total in self.get_total().items():
                 if total == 0:
                     continue
                 table = self[k]
@@ -525,7 +525,7 @@ class Table(dict):
                     table[k2] /= total
 
         else:
-            total = self.total()
+            total = self.get_total()
             if total != 0:
                 for k in self.keys():
                     self[k] /= total

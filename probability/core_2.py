@@ -1,6 +1,7 @@
 from collections import ChainMap
 from collections.abc import Mapping, Iterable
 from itertools import groupby
+from functools import cached_property
 from operator import itemgetter
 import numpy as np
 from probability import RowKey
@@ -450,7 +451,7 @@ class Table(dict):
         return f"{header}\n{horizontal_line}\n{rows}"
 
     def np_values(self):
-        return np.asarray([v for v in self.values()])
+        return np.asarray(list(self.values()))
 
     def add(self, that):
         """Combines two FrequencyTable and return
@@ -509,26 +510,27 @@ class Table(dict):
 
         return add_internal(self.copy(), that, self.names)
 
-    def get_total(self):
+    @cached_property
+    def total(self):
         if self.columns.is_multitable():
-            return {k: table.get_total() for k, table in self.items()}
+            # return {k: table.total for k, table in self.items()}
+            return sum(table.total for table in self.values())
 
         return sum(self.values())
 
     def normalise(self):
         if self.columns.is_multitable():
-            for k, total in self.get_total().items():
-                if total == 0:
-                    continue
-                table = self[k]
-                for k2 in table:
-                    table[k2] /= total
+            for table in self.values():
+                table.normalise()
+                # total is cached_property
+                table.__dict__["total"] = 1
 
         else:
-            total = self.get_total()
-            if total != 0:
+            if self.total != 0:
                 for k in self.keys():
-                    self[k] /= total
+                    self[k] /= self.total
+            # total is cached_property
+            self.__dict__["total"] = 1
 
     def __mul__(self, right):
         """Multiplies a table with this one.

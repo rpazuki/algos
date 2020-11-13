@@ -136,13 +136,13 @@ def test_table_of_table():
 
 def test_total_table():
     table1 = Table({"a": 3, "b": 4, "c": 5}, names=["X1"])
-    assert table1.get_total() == 12
+    assert table1.total == 12
 
     table1 = Table(
         {("a", "x"): 4, ("a", "y"): 4, ("b", "x"): 6, ("b", "y"): 6},
         names=["X1", "X2"],
     )
-    assert table1.get_total() == 20
+    assert table1.total == 20
 
     samples = {
         ("a", "x", 1, 33): 1,
@@ -164,9 +164,7 @@ def test_total_table():
     }
     table1 = Table(samples, names=["X1", "X2", "X3", "X4"])
     con_1 = table1.condition_on("X1", normalise=False)
-    totals = con_1.get_total()
-    assert totals[("a",)] == 36
-    assert totals[("b",)] == 100
+    assert con_1.total == 136
 
 
 def test_normalise_table():

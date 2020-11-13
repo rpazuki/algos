@@ -12,7 +12,6 @@ class FrequencyTable(Table):
         #
         if consistencies:
             self._check_keys_consistencies_()
-        self.total = super().get_total()
 
     @classmethod
     def from_np_array(cls, samples, names=None):
